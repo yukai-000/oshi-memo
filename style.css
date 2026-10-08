@@ -746,3 +746,57 @@ select {
 .help-list li { margin-bottom: 8px; }
 .storage-info { padding-left: 20px; font-size: 13px; color: var(--muted); margin: 6px 0 0; }
 .backup-buttons { flex-wrap: wrap; }
+
+/* ---------- 使い方マニュアル (manual.html) ---------- */
+.manual-page .topbar h1 { font-size: 18px; }
+.manual { max-width: 860px; }
+.manual .card { line-height: 1.8; }
+.manual h2 { font-size: 22px; margin-top: 0; }
+.manual h3 { font-family: var(--hand); font-size: 17px; margin: 26px 0 6px; padding-top: 12px; border-top: 1px dashed var(--line); }
+.manual figure { margin: 14px 0 18px; }
+.manual figure img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+  border: 6px solid var(--photo);
+  box-shadow: 0 2px 4px var(--shadow), 0 8px 18px var(--shadow);
+}
+.manual figure img.narrow { max-width: min(420px, 100%); }
+.manual code {
+  font-family: ui-monospace, "SF Mono", Consolas, monospace;
+  font-size: 13px;
+  background: var(--paper);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+.manual a:not(.button) { color: var(--ink); text-decoration: underline wavy var(--pink); text-underline-offset: 3px; }
+.manual .button { text-decoration: none; color: var(--ink); }
+/* 表 (横に長いときはスクロール) */
+.table-wrap { overflow-x: auto; margin: 10px 0 14px; }
+.manual table { border-collapse: collapse; width: 100%; font-size: 14px; }
+.manual th, .manual td { border-bottom: 1px dashed var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+.manual th { font-family: var(--hand); color: var(--muted); font-weight: 600; white-space: nowrap; }
+.manual td:first-child { white-space: nowrap; }
+/* 目次 */
+.manual-toc ol { margin: 0; padding-left: 22px; columns: 2; column-gap: 30px; }
+.manual-toc li { margin-bottom: 4px; break-inside: avoid; }
+/* 免責事項 */
+.disclaimer {
+  background: var(--tape-yellow);
+  padding: 12px 16px;
+  margin: 16px 0;
+}
+/* よくある質問 */
+.faq dt { font-weight: 700; margin-top: 12px; }
+.faq dd { margin: 2px 0 0 1em; }
+.manual-back { text-align: center; margin: 10px 0 40px; }
+@media (max-width: 720px) {
+  .manual-toc ol { columns: 1; }
+  .manual h2 { font-size: 19px; }
+}
+/* リンク型のボタンは普通のボタンと同じ見た目にする (青い下線を出さない) */
+a.button { color: var(--ink); text-decoration: none; display: inline-block; }
+.lightbox-tools a.button { color: #f5f0e6; }
+/* 表の「名前」の列が狭くなりすぎないように */
+.manual td:nth-child(2) { min-width: 7em; }

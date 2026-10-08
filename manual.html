@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f0e6">
+  <title>使い方マニュアル - 推しメモ帳</title>
+  <link rel="icon" href="favicon.ico" sizes="32x32">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <!-- フォント: アプリと同じ Klee One (手書き風) と Zen Maru Gothic (丸ゴシック) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Klee+One:wght@400;600&family=Zen+Maru+Gothic:wght@400;500;700&display=swap">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="manual-page">
+  <!-- 上のバー: アプリに戻る -->
+  <header class="topbar">
+    <a class="button" href="./">← アプリに戻る</a>
+    <h1>使い方マニュアル</h1>
+  </header>
+
+  <main class="manual">
+    <!-- 目次 (押すとその章へ移動) -->
+    <nav class="card manual-toc" aria-label="目次">
+      <h2>もくじ</h2>
+      <ol>
+        <li><a href="#start">はじめに</a></li>
+        <li><a href="#first">はじめにやること</a></li>
+        <li><a href="#screen">画面の見かた</a></li>
+        <li><a href="#oshi">推しの登録・編集</a></li>
+        <li><a href="#copy">コピー・色・誕生日・リンク・X 投稿</a></li>
+        <li><a href="#images">参考画像</a></li>
+        <li><a href="#settings">項目・設定</a></li>
+        <li><a href="#backup">バックアップとお引っ越し</a></li>
+        <li><a href="#notes">注意点とよくある質問</a></li>
+      </ol>
+    </nav>
+
+    <!-- 1. はじめに -->
+    <section class="card" id="start">
+      <h2>はじめに</h2>
+      <p>推しメモ帳は、Vtuber のファンマーク・ファンアートタグ・色・参考画像をまとめて保存できるメモ帳です。データは使っている端末（ブラウザ）の中だけに保存され、サーバーには何も送られません。</p>
+      <p>初めて開くと、下の「使う前に知っておいてほしいこと」が出ます。読んだら「わかりました」を押してください。右上の「？」からいつでも見直せます。</p>
+      <figure><img src="manual/help.webp" alt="最初に出る注意点の画面" loading="lazy"></figure>
+    </section>
+
+    <!-- 2. はじめにやること -->
+    <section class="card" id="first">
+      <h2>はじめにやること</h2>
+      <p>スマホはホーム画面に追加しておくと、データが消えにくくなり、アプリのように開けます。</p>
+      <ol>
+        <li>スマホの人は、ホーム画面に追加する
+          <ul>
+            <li><b>iPhone・iPad（Safari）</b>：共有ボタン（□↑）→「ホーム画面に追加」</li>
+            <li><b>Android（Chrome）</b>：右上の ︙ →「ホーム画面に追加」または「アプリをインストール」</li>
+          </ul>
+        </li>
+        <li>左上の <b>☰</b> →「＋ 推しを追加」で、推しを登録する（<a href="#oshi">推しの登録・編集</a>で詳しく説明）</li>
+      </ol>
+    </section>
+
+    <!-- 3. 画面の見かた -->
+    <section class="card" id="screen">
+      <h2>画面の見かた</h2>
+      <p>推しを選ぶと、その推しのページが開きます。番号は下の表と対応しています。</p>
+      <figure><img src="manual/overview.webp" alt="推しのページ全体（番号付き）" loading="lazy"></figure>
+      <div class="table-wrap">
+        <table>
+          <tr><th>番号</th><th>名前</th><th>できること</th></tr>
+          <tr><td>1</td><td>☰</td><td>推しリストを開く（推しの選択・検索・追加）</td></tr>
+          <tr><td>2</td><td>⚙ 項目・設定</td><td>登録項目の変更、投稿テンプレート、バックアップ（スマホでは「⚙ 設定」）</td></tr>
+          <tr><td>3</td><td>？</td><td>注意点を見る・このマニュアルを開く</td></tr>
+          <tr><td>4</td><td>もうすぐ誕生日</td><td>誕生日が 1 か月以内の推しが出る（押すとその推しのページへ）</td></tr>
+          <tr><td>5</td><td>名前と ★</td><td>☆ を押すとお気に入り（★）</td></tr>
+          <tr><td>6</td><td>𝕏 で投稿・編集・削除</td><td>X に投稿、登録内容の変更、推しの削除</td></tr>
+          <tr><td>7</td><td>アイコン</td><td>押すとアイコン画像を登録・変更</td></tr>
+          <tr><td>8</td><td>登録内容</td><td>マスキングテープ風のボタンを押すとコピー</td></tr>
+        </table>
+      </div>
+      <p>ページを下に進むと、色・誕生日・リンク、その下に参考画像があります。スマホでも並びは同じです。</p>
+    </section>
+
+    <!-- 4. 推しの登録・編集 -->
+    <section class="card" id="oshi">
+      <h2>推しの登録・編集</h2>
+      <h3>推しリスト</h3>
+      <p>左上の ☰ を押すと、登録した推しの一覧が出ます。お気に入り（★）が一番上、そのあとはふりがなのあいうえお順です。</p>
+      <figure><img src="manual/list.webp" alt="推しリスト" loading="lazy" class="narrow"></figure>
+      <ol>
+        <li><b>検索欄</b>：名前・ふりがな・事務所などでさがせます（ひらがなでもカタカナでも OK）</li>
+        <li><b>＋ 推しを追加</b>：新しい推しを登録します</li>
+        <li><b>推しの一覧</b>：押すとその推しのページが開きます。右端の 🎂 は誕生日が近い推し、★ はお気に入りです</li>
+      </ol>
+      <p>検索欄に「ミライ」と入れた例です。</p>
+      <figure><img src="manual/search.webp" alt="検索したところ" loading="lazy" class="narrow"></figure>
+
+      <h3>推しを追加する</h3>
+      <p>「＋ 推しを追加」を押すと入力画面が開きます。入力して一番下の「保存」を押します。空欄のままの項目があっても大丈夫です。</p>
+      <figure><img src="manual/add.webp" alt="推しを追加する画面" loading="lazy" class="narrow"></figure>
+      <ul>
+        <li>改行するか、<code>#タグA #タグB</code> のように並べると、タグが 1 つずつ別のボタンになります</li>
+        <li>下のほうに、色・誕生日・リンクの入力欄もあります（<a href="#copy">コピー・色・誕生日・リンク・X 投稿</a>で説明）</li>
+        <li>漢字の名前の推しは、ふりがなを入れると推しリストで正しく並びます</li>
+      </ul>
+
+      <h3>編集・削除・アイコン・お気に入り</h3>
+      <div class="table-wrap">
+        <table>
+          <tr><th>やりたいこと</th><th>操作</th></tr>
+          <tr><td>登録内容を直す</td><td>推しのページの「編集」</td></tr>
+          <tr><td>推しを削除</td><td>「削除」（保存した画像もすべて消えます）</td></tr>
+          <tr><td>アイコンを付ける</td><td>名前の下の丸い枠を押して画像を選ぶ（真ん中が正方形に切り抜かれます）</td></tr>
+          <tr><td>アイコンを外す</td><td>アイコンの横の「アイコンを外す」</td></tr>
+          <tr><td>お気に入りにする</td><td>名前の横の ☆ を押す（もう一度押すと外れます）</td></tr>
+        </table>
+      </div>
+    </section>
+
+    <!-- 5. コピー・色・誕生日・リンク・X 投稿 -->
+    <section class="card" id="copy">
+      <h2>コピー・色・誕生日・リンク・X 投稿</h2>
+      <h3>コピー</h3>
+      <p>登録した内容は、マスキングテープ風のボタンを押すだけでコピーされます。押したボタンには ✓ が付きます（下の「#ミライ画廊 ✓」）。</p>
+      <figure><img src="manual/copy.webp" alt="タグを押してコピーしたところ" loading="lazy"></figure>
+
+      <h3>色（髪の色・目の色など）</h3>
+      <p>「編集」→ 色の項目の「＋ 色を追加」で登録します。カラーピッカーで選ぶか、<code>#2b3a67</code> のようなカラーコードを入力します。1 つの項目に何色でも登録できます。</p>
+      <figure><img src="manual/colors.webp" alt="登録した色" loading="lazy"></figure>
+      <p>色見本を押すと、カラーコードがコピーされます。お絵描きソフトの色の設定に貼り付けられます。参考画像からスポイトで拾うこともできます（<a href="#images">参考画像</a>で説明）。</p>
+
+      <h3>誕生日</h3>
+      <p>「編集」→ 誕生日の月と日を選びます。誕生日の 1 か月前から、画面の上にお知らせが出て「あと ○ 日」と数えてくれます。当日は「🎉 今日！」と出ます。</p>
+      <figure><img src="manual/birthday.webp" alt="もうすぐ誕生日のお知らせ" loading="lazy"></figure>
+
+      <h3>リンク</h3>
+      <p>「編集」→「＋ リンクを追加」で、YouTube や X などの URL をいくつでも登録できます。名前を空にすると「YouTube」「X」などが自動で付きます。推しのページで押すと、そのページが開きます。</p>
+
+      <h3>X に投稿</h3>
+      <p>推しのページの「𝕏 で投稿」を押すと、ファンアートタグが入った X の投稿画面が開きます。文章は「⚙ 項目・設定」の投稿テンプレートで変えられます。</p>
+      <ul>
+        <li>画像は、X の投稿画面で自分で選んでください</li>
+        <li>「「ファンアートタグ」が未登録です」と出たら、その推しのファンアートタグを登録してください</li>
+      </ul>
+    </section>
+
+    <!-- 6. 参考画像 -->
+    <section class="card" id="images">
+      <h2>参考画像</h2>
+      <p>参考画像は、推しごと・フォルダごと（例：通常衣装）に元の画質のまま保存できます。推しを追加すると「通常衣装」フォルダが自動でできます。</p>
+      <figure><img src="manual/images.webp" alt="参考画像の画面（番号付き）" loading="lazy"></figure>
+      <div class="table-wrap">
+        <table>
+          <tr><th>番号</th><th>名前</th><th>できること</th></tr>
+          <tr><td>1</td><td>＋ フォルダ</td><td>フォルダを作る（例：新衣装、ラフ資料）</td></tr>
+          <tr><td>2</td><td>フォルダのタブ</td><td>押すとフォルダを切り替え。数字は画像の枚数</td></tr>
+          <tr><td>3</td><td>画像を追加</td><td>画像を選んで保存（複数枚まとめて OK）。横のボタンでフォルダ名の変更・削除（削除すると中の画像も消えます）</td></tr>
+          <tr><td>4</td><td>画像を置く場所</td><td>PC は画像をドラッグ＆ドロップ、または <code>Ctrl + V</code> で貼り付けても追加できます</td></tr>
+          <tr><td>5</td><td>ひとことメモ</td><td>画像の下に表示（書き方は下の拡大表示で）</td></tr>
+        </table>
+      </div>
+      <p>画像の右下の ✕ で、その画像を削除できます。</p>
+
+      <h3>拡大表示でできること</h3>
+      <p>画像を押すと拡大表示になり、下のボタンでお絵描き用の確認ができます。</p>
+      <figure><img src="manual/lightbox.webp" alt="拡大表示（番号付き）" loading="lazy"></figure>
+      <div class="table-wrap">
+        <table>
+          <tr><th>番号</th><th>ボタン</th><th>できること</th></tr>
+          <tr><td>1</td><td>⇆ 反転</td><td>左右反転（デッサンの狂いの確認に）</td></tr>
+          <tr><td>2</td><td>◐ 白黒</td><td>白黒表示（色の明るさの確認に）</td></tr>
+          <tr><td>3</td><td>💧 スポイト</td><td>押してから、画像の色を拾いたい場所を押す</td></tr>
+          <tr><td>4</td><td>− / 100% / ＋</td><td>ズーム。マウスホイールや指 2 本でもでき、ズーム中はドラッグで移動。「100%」で等倍に戻る</td></tr>
+          <tr><td>5</td><td>保存</td><td>画像を端末にダウンロード</td></tr>
+          <tr><td>6</td><td>ひとことメモ</td><td>書いて Enter（または閉じる）で保存。例：前髪の分け目</td></tr>
+          <tr><td>7</td><td>スポイトで拾った色</td><td>「コピー」でカラーコードをコピー。色の項目（例：髪の色）を選んで「に登録」で推しの色に追加</td></tr>
+        </table>
+      </div>
+      <p>反転と白黒を両方 ON にした例です。画像の外側を押すか、「閉じる」で拡大表示が閉じます。</p>
+      <figure><img src="manual/flip-gray.webp" alt="反転と白黒を ON にしたところ" loading="lazy" class="narrow"></figure>
+    </section>
+
+    <!-- 7. 項目・設定 -->
+    <section class="card" id="settings">
+      <h2>項目・設定</h2>
+      <p>右上の「⚙ 項目・設定」（スマホでは「⚙ 設定」）で、登録する項目や投稿の文章を自由に変えられます。変えたら一番下の「保存」を押します。</p>
+      <figure><img src="manual/settings.webp" alt="項目・設定の画面（上のほう）" loading="lazy" class="narrow"></figure>
+      <ul>
+        <li><b>文字の項目</b>：「＋ 項目を追加」で追加、項目名を書き換えて名前の変更、✕ で削除、↑↓ で並べ替え。一番上の項目が推しリストの「見出し」になります</li>
+        <li><b>色の項目</b>：髪の色・目の色など。文字の項目と同じように追加・変更・削除できます（例：インナーカラー）</li>
+        <li>項目を削除しても、登録してあった内容は消えません。文字の項目は 1 つ以上必要なので、全部は消せません</li>
+      </ul>
+      <p>下に進むと、投稿テンプレート・バックアップ・保存についてがあります。</p>
+      <figure><img src="manual/settings-bottom.webp" alt="項目・設定の画面（下のほう）" loading="lazy" class="narrow"></figure>
+      <ul>
+        <li><b>投稿テンプレート</b>：「𝕏 で投稿」の文章です。<code>{項目名}</code> の部分にその推しの登録内容が入ります。例：<code>{名前}さんのファンアートを描きました！ {ファンアートタグ}</code></li>
+        <li><b>バックアップ</b>：書き出しと読み込み（<a href="#backup">次の章</a>で説明）</li>
+        <li><b>保存について</b>：使っている容量、ブラウザによる自動削除の防止が ON か、最後にバックアップした日</li>
+      </ul>
+    </section>
+
+    <!-- 8. バックアップとお引っ越し -->
+    <section class="card" id="backup">
+      <h2>バックアップとお引っ越し</h2>
+      <p>データは端末の中だけにあるので、ときどきファイルに書き出しておくと安心です。最後のバックアップから 30 日たつと、画面の上にお知らせが出ます。</p>
+      <div class="table-wrap">
+        <table>
+          <tr><th>ボタン</th><th>中身</th><th>ファイル名の例</th></tr>
+          <tr><td>画像も含めて書き出す</td><td>すべて（参考画像も）。別の端末へのお引っ越しに使える</td><td><code>oshimemo-2026-10-08-full.zip</code></td></tr>
+          <tr><td>文字だけ書き出す</td><td>文字・色・リンク・誕生日・アイコン・設定（参考画像はなし、軽い）</td><td><code>oshimemo-2026-10-08.json</code></td></tr>
+        </table>
+      </div>
+      <p>どちらのボタンも、「⚙ 項目・設定」の下のほうの「バックアップ」にあります（<a href="#settings">前の章</a>の 2 枚目の画像）。</p>
+
+      <h3>読み込み方</h3>
+      <ol>
+        <li>「⚙ 設定」→「バックアップ」の「読み込む」を押す</li>
+        <li>書き出したファイル（.zip または .json）を選ぶ
+          <ul>
+            <li>PC：「ダウンロード」フォルダ</li>
+            <li>iPhone・iPad：「ブラウズ」→「ダウンロード」</li>
+            <li>Android：「ファイル」→「ダウンロード」</li>
+          </ul>
+        </li>
+        <li>「○人分・画像○枚のデータを読み込みますか？」で「OK」を押す</li>
+        <li>「読み込みました」と出たら完了</li>
+      </ol>
+      <p>今あるデータは消えず、読み込んだデータが追加されます。同じ推しのデータがあるときは、バックアップの内容で上書きされます。</p>
+
+      <h3>別の端末へお引っ越し</h3>
+      <ol>
+        <li>元の端末で「画像も含めて書き出す」</li>
+        <li>できた zip を新しい端末に移す（自分宛てメール、Google ドライブ、iCloud Drive、USB など）</li>
+        <li>新しい端末でアプリを開いて読み込む</li>
+      </ol>
+    </section>
+
+    <!-- 9. 注意点とよくある質問 -->
+    <section class="card" id="notes">
+      <h2>注意点とよくある質問</h2>
+      <h3>注意点</h3>
+      <ol>
+        <li><b>データはこの端末のこのブラウザの中だけに保存されます。</b>作者を含め、ほかの人には見られません。</li>
+        <li><b>PC とスマホでデータは共有されません。</b>移すときは「お引っ越し」の手順を使います。</li>
+        <li><b>ブラウザの「閲覧データの削除」をすると、データも消えます。</b>シークレットモードでは、閉じると消えます。</li>
+        <li><b>iPhone・iPad は、7 日間開かないとデータが消えることがあります。</b>ホーム画面に追加して、そこから開いてください。</li>
+        <li><b>画像をたくさん保存すると、端末の容量を使います。</b>容量は「⚙ 設定」→「保存について」で確認できます。</li>
+      </ol>
+      <p class="disclaimer"><b>⚠ 免責事項</b>：このアプリの不具合・端末の故障・ブラウザのデータ削除などでデータが失われても、作者は一切の責任を負いません。大事なデータは、ご自身でバックアップしてください。</p>
+
+      <h3>よくある質問</h3>
+      <dl class="faq">
+        <dt>Q. データが消えた。作者に戻してもらえる？</dt>
+        <dd>A. 戻せません。データは作者のところに届いていないためです。バックアップがあれば、それを読み込んでください。</dd>
+        <dt>Q. アプリを更新したらデータは消える？</dt>
+        <dd>A. 消えません。新しい機能は、開き直すと数分〜10 分くらいで反映されます。</dd>
+        <dt>Q. 「このブラウザで開けない形式」と出て画像を保存できない。</dt>
+        <dd>A. その画像を JPEG や PNG に変えてから追加してください。他の画像はそのまま保存されています。</dd>
+        <dt>Q. 「𝕏 で投稿」で画像も一緒に付けられる？</dt>
+        <dd>A. 付けられません。X の仕組み上、画像は投稿画面で自分で選んでください。</dd>
+        <dt>Q. 推しリストがあいうえお順にならない。</dt>
+        <dd>A. 「ふりがな」を入れてください。漢字の名前は、ふりがながないと正しく並びません。</dd>
+      </dl>
+    </section>
+
+    <p class="manual-back"><a class="button" href="./">← アプリに戻る</a></p>
+  </main>
+</body>
+</html>
