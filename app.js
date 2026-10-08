@@ -951,7 +951,7 @@ function openVtuberDialog(v) {
   // 登録項目がまだ読み込まれていないときは待ってもらう
   if (!state.fields.length) return toast("読み込み中です。少し待ってください");
   state.editingId = v ? v.id : null;
-  $("#dlg-vtuber-title").textContent = v ? "Vtuber を編集" : "Vtuber を追加";
+  $("#dlg-vtuber-title").textContent = v ? "推しを編集" : "推しを追加";
   // 登録項目の数だけ入力欄を作る (改行で複数登録できるよう textarea にする)
   const texts = state.fields.map((f) =>
     `<label>${esc(f.label)}<textarea data-field="${esc(f.id)}" rows="1">${esc((v && v.values[f.id]) || "")}</textarea></label>`
