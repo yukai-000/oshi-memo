@@ -15,10 +15,16 @@ const DEFAULT_COLOR_FIELDS = [
 // 初回ログイン時の登録項目 (あとから画面で自由に追加・削除・編集できる)
 const DEFAULT_FIELDS = [
   { id: "name", label: "名前" },
+  { id: "furigana", label: "ふりがな" },          // 一覧のあいうえお順・検索に使う
   { id: "office", label: "事務所" },
   { id: "fanmark", label: "ファンマーク" },
   { id: "fanart", label: "ファンアートタグ" },
+  { id: "thumbnail", label: "サムネイル" },      // サムネイル用イラストのタグなど
+  { id: "voice", label: "ボイス" },
+  { id: "egosearch", label: "エゴサーチ" },
 ];
+// 以前の初期項目 (この 4 つのまま使っている人には、新しい項目を自動で足す)
+const OLD_DEFAULT_IDS = "name,office,fanmark,fanart";
 // 投稿テンプレートの初期値 ({項目名} の部分に登録内容が入る)
 const DEFAULT_POST_TEMPLATE = "{ファンアートタグ}";
 // 新しい Vtuber に最初から作るフォルダ
@@ -73,6 +79,11 @@ async function start() {
     if (!settings) {
       settings = { fields: DEFAULT_FIELDS, colorFields: DEFAULT_COLOR_FIELDS, postTemplate: DEFAULT_POST_TEMPLATE, lastBackupAt: 0 };
       await store.saveSettings(settings);
+    }
+    // 以前の初期項目のまま (自分で項目を変えていない) なら、新しい初期項目に入れ替える
+    if (settings.fields && settings.fields.map((f) => f.id).join(",") === OLD_DEFAULT_IDS) {
+      settings.fields = DEFAULT_FIELDS;
+      await store.saveSettings({ fields: DEFAULT_FIELDS });
     }
     applySettings(settings);
     await loadVtubers();
