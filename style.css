@@ -822,3 +822,13 @@ a.button { color: var(--ink); text-decoration: none; display: inline-block; }
 /* ☀ / 🌙 の切り替えボタン */
 #btn-theme { font-size: 17px; line-height: 1; padding: 4px 8px; }
 .manual-page .topbar-right { margin-left: auto; }
+
+/* ---------- 作者の表示 (画面の一番下) ---------- */
+.credit {
+  margin-top: auto;           /* 中身が少ないときも画面の一番下に置く */
+  padding: 18px 16px 22px;
+  text-align: center;
+  font-size: 12px;
+  letter-spacing: .05em;
+  color: var(--muted);
+}
