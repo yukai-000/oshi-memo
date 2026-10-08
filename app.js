@@ -536,9 +536,26 @@ function buildPostText(v) {
   return text.trim();
 }
 
+// テンプレートで使っている項目のうち、この Vtuber で未登録のもの (項目名の一覧)
+function missingPostFields(v) {
+  return [...state.postTemplate.matchAll(/\{([^{}]+)\}/g)]
+    .map((m) => m[1].trim())
+    .filter((label) => {
+      const f = state.fields.find((x) => x.label === label);
+      return f && !(v.values[f.id] || "").trim();
+    });
+}
+
 function openPost(v) {
+  // テンプレートそのものが空のとき
+  if (!state.postTemplate.trim()) return toast("投稿テンプレートが空です。「⚙ 項目・設定」で設定してください");
   const text = buildPostText(v);
-  if (!text) return toast("投稿テンプレートが空です。「⚙ 項目・設定」で設定してください");
+  const missing = missingPostFields(v);
+  const names = missing.map((l) => `「${l}」`).join("");
+  // 当てはめた結果が空 = 使っている項目がこの人では未登録
+  if (!text) return toast(`${names}が未登録です。「編集」から登録してください`);
+  // 一部だけ未登録なら、知らせてから投稿画面を開く
+  if (missing.length) toast(`${names}が未登録のまま投稿画面を開きます`);
   // X の投稿画面を開く (スマホでは X アプリが開く)
   window.open("https://x.com/intent/tweet?text=" + encodeURIComponent(text), "_blank", "noopener");
 }
