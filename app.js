@@ -52,7 +52,11 @@ const thumbUrls = new Map();    // サムネイル画像の表示用 URL (作り
 const $ = (sel) => document.querySelector(sel);
 
 // 新しい ID を作る (英数字 32 文字)
-const newId = () => crypto.randomUUID().replace(/-/g, "");
+const newId = () => {
+  if (crypto.randomUUID) return crypto.randomUUID().replace(/-/g, "");
+  // randomUUID が無い古いブラウザ用: ランダムな 16 バイトを 16 進数にする
+  return [...crypto.getRandomValues(new Uint8Array(16))].map((b) => b.toString(16).padStart(2, "0")).join("");
+};
 
 // 選択中の Vtuber を返す
 const current = () => state.vtubers.find((v) => v.id === state.selectedId);
@@ -123,12 +127,15 @@ async function loadVtubers() {
 
 // 選択中の Vtuber の画像を読み直す
 async function loadImages() {
-  if (!state.selectedId) {
+  const id = state.selectedId;
+  if (!id) {
     state.images = [];
     return;
   }
-  state.images = (await store.listImages(state.selectedId))
-    .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)); // 新しく追加した画像が先頭
+  const list = await store.listImages(id);
+  // 読み込み中に別の Vtuber に切り替えていたら、古い結果は使わない
+  if (state.selectedId !== id) return;
+  state.images = list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)); // 新しく追加した画像が先頭
 }
 
 // 何かを保存したあとに呼ぶ: 読み直して描き直す
@@ -665,11 +672,17 @@ async function upload(fileList) {
   if (uploading) return toast("保存中です。少し待ってください");
   uploading = true;
   let done = 0;
+  let skipped = 0; // 開けなかった画像の数
   try {
     for (const file of files) {
       toast(`保存中… (${done + 1}/${files.length})`);
       // 元の画像はそのまま保存し、一覧用の小さい画像だけ作る
-      const bitmap = await createImageBitmap(file);
+      // (このブラウザで開けない形式の画像は飛ばして、残りの画像の保存を続ける)
+      const bitmap = await createImageBitmap(file).catch(() => null);
+      if (!bitmap) {
+        skipped++;
+        continue;
+      }
       const thumb = await makeThumb(bitmap);
       const { width, height } = bitmap;
       bitmap.close();
@@ -681,7 +694,7 @@ async function upload(fileList) {
       }, file);
       done++;
     }
-    toast(`${done} 枚保存しました`);
+    toast(`${done} 枚保存しました` + (skipped ? ` (${skipped} 枚はこのブラウザで開けない形式のため保存できませんでした)` : ""));
   } catch (e) {
     // 端末の空き容量が足りないとき
     if (e && e.name === "QuotaExceededError") e = new Error("端末の空き容量が足りません");
@@ -740,14 +753,20 @@ async function openLightbox(id) {
   // スポイト用に、元の大きさのままキャンバスに描いておく
   const bitmap = await createImageBitmap(blob);
   const canvas = document.createElement("canvas");
-  canvas.width = bitmap.width;
-  canvas.height = bitmap.height;
-  canvas.getContext("2d", { willReadFrequently: true }).drawImage(bitmap, 0, 0);
+  // iPhone の Safari はキャンバスの大きさに上限 (約 1,670 万画素) があるので、超える画像は縮小して描く
+  // (スポイトは画像の中の「割合」で位置を決めるので、縮小しても同じ場所の色を拾える)
+  const scale = Math.min(1, Math.sqrt(16_000_000 / (bitmap.width * bitmap.height)));
+  canvas.width = Math.max(1, Math.floor(bitmap.width * scale));
+  canvas.height = Math.max(1, Math.floor(bitmap.height * scale));
+  canvas.getContext("2d", { willReadFrequently: true }).drawImage(bitmap, 0, 0, canvas.width, canvas.height);
   bitmap.close();
   if (lb.id === id) lb.canvas = canvas;
 }
 
 function closeLightbox() {
+  if ($("#lightbox").hidden) return;
+  // 入力中のメモがあれば、閉じる前に保存する (入力欄から離れると保存される)
+  if (document.activeElement === $("#lb-memo")) $("#lb-memo").blur();
   $("#lightbox").hidden = true;
   lb.id = null;
 }
@@ -844,9 +863,12 @@ function pickColor(e) {
   let rx = (e.clientX - rect.left) / rect.width;
   const ry = (e.clientY - rect.top) / rect.height;
   if (lb.flip) rx = 1 - rx; // 反転表示中は左右を戻して計算
-  const px = Math.floor(rx * lb.canvas.width), py = Math.floor(ry * lb.canvas.height);
-  const x0 = Math.max(0, px - 1), y0 = Math.max(0, py - 1);
-  const data = lb.canvas.getContext("2d").getImageData(x0, y0, 3, 3).data;
+  const { width: cw, height: ch } = lb.canvas;
+  const px = Math.floor(rx * cw), py = Math.floor(ry * ch);
+  // まわり 3×3 を画像の内側に収める (端を押したときに外側の黒が混ざらないように)
+  const w = Math.min(3, cw), h = Math.min(3, ch);
+  const x0 = Math.min(Math.max(0, px - 1), cw - w), y0 = Math.min(Math.max(0, py - 1), ch - h);
+  const data = lb.canvas.getContext("2d").getImageData(x0, y0, w, h).data;
   let r = 0, g = 0, b = 0, n = 0;
   for (let i = 0; i < data.length; i += 4) { r += data[i]; g += data[i + 1]; b += data[i + 2]; n++; }
   const hex = "#" + [r, g, b].map((c) => Math.round(c / n).toString(16).padStart(2, "0")).join("");
@@ -1088,8 +1110,11 @@ $("#dlg-fields").addEventListener("close", () => {
   if ($("#dlg-fields").returnValue !== "ok") return;
   // 空の項目名は保存しない
   const clean = (list) => list.map((f) => ({ id: f.id, label: f.label.trim() })).filter((f) => f.label);
+  const fields = clean(drafts.fields);
+  // 文字の項目が 1 つも無いと名前を登録できないので、保存しない
+  if (!fields.length) return toast("文字の項目は 1 つ以上必要です。保存しませんでした");
   store.saveSettings({
-    fields: clean(drafts.fields),
+    fields,
     colorFields: clean(drafts.colorFields),
     postTemplate: $("#post-template").value.trim(),
   }).then(reload).catch(fail);
@@ -1236,6 +1261,9 @@ function backupNoticeHtml() {
   if (!state.vtubers.length) return "";
   const days = state.lastBackupAt ? Math.floor((Date.now() - state.lastBackupAt) / 86400000) : null;
   if (days !== null && days < BACKUP_REMIND_DAYS) return "";
+  // 一度もバックアップしていないときは、最初の登録から 7 日たったら知らせる
+  const firstAt = Math.min(...state.vtubers.map((v) => v.createdAt || Date.now()));
+  if (days === null && Date.now() - firstAt < 7 * 86400000) return "";
   return `
     <section class="notice">
       <p>💾 ${days === null ? "まだバックアップをしていません。" : `最後のバックアップから ${days} 日たちました。`}
