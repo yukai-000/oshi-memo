@@ -18,7 +18,7 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Klee+One:wght@400;600&family=Zen+Maru+Gothic:wght@400;500;700&display=swap">
   <!-- ?v=… は「バージョン番号」。アプリを更新したら数字を変えると、
        スマホなどに残っている古いファイルではなく、新しいファイルが必ず読み込まれる -->
-  <link rel="stylesheet" href="style.css?v=20261008-3">
+  <link rel="stylesheet" href="style.css?v=20261008-4">
 </head>
 <body>
   <!-- 読み込み中の表示 -->
@@ -26,7 +26,7 @@
 
   <!-- 上のバー: 左に ☰ とタイトル、右に登録項目の編集とログイン情報 -->
   <header class="topbar" id="topbar" hidden>
-    <button id="btn-menu" class="icon-btn" title="Vtuber の一覧" aria-label="Vtuber の一覧">☰</button>
+    <button id="btn-menu" class="icon-btn" title="推しの一覧" aria-label="推しの一覧">☰</button>
     <h1>推しメモ帳</h1>
     <div class="topbar-right">
       <button id="btn-fields" class="ghost" title="登録項目の編集・設定">⚙<span class="wide-only"> 項目・設定</span><span class="narrow-only"> 設定</span></button>
@@ -36,7 +36,7 @@
 
   <!-- ☰ を押すと左から出てくる Vtuber の一覧 -->
   <div id="drawer-backdrop" hidden></div>
-  <aside class="drawer" id="drawer" aria-label="Vtuber の一覧">
+  <aside class="drawer" id="drawer" aria-label="推しの一覧">
     <div class="drawer-head">
       <h2>推しリスト</h2>
       <button id="btn-close-menu" class="icon-btn" title="閉じる" aria-label="閉じる">✕</button>
@@ -103,7 +103,7 @@
       <h3>バックアップ</h3>
       <p class="hint">データはこの端末の中だけにあります。ときどき書き出して、PC やクラウドに保存しておくと安心です。<br>
         「画像も含めて」のファイルを別の端末で読み込めば、データのお引っ越しもできます。<br>
-        読み込むと、同じ Vtuber のデータは書き出したときの内容に戻ります。</p>
+        読み込むと、同じ推しのデータは書き出したときの内容に戻ります。</p>
       <div class="backup-buttons">
         <button type="button" id="btn-export-zip" class="primary">画像も含めて書き出す (.zip)</button>
         <button type="button" id="btn-export">文字だけ書き出す (.json)</button>
@@ -153,6 +153,6 @@
   <!-- type="module" にすると import が使える -->
   <!-- zip の書き出し・読み込み用ライブラリ (JSZip, MIT ライセンス) -->
   <script src="lib/jszip.min.js"></script>
-  <script type="module" src="app.js?v=20261008-3"></script>
+  <script type="module" src="app.js?v=20261008-4"></script>
 </body>
 </html>

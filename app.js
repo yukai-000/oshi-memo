@@ -5,7 +5,7 @@
 // サーバーやログインは使いません。保存の処理は store.js にまとめています。
 // ============================================================
 
-import * as store from "./store.js?v=20261008-3"; // ?v= は更新時に変えるバージョン番号
+import * as store from "./store.js?v=20261008-4"; // ?v= は更新時に変えるバージョン番号
 
 // 初回の色の項目 (これも自由に追加・削除・編集できる)
 const DEFAULT_COLOR_FIELDS = [
@@ -1227,7 +1227,7 @@ $("#import-input").onchange = async (e) => {
     const data = JSON.parse(text || "{}");
     if (data.app !== "oshi-memo" || !Array.isArray(data.vtubers)) return toast("推しメモ帳のバックアップファイルではありません");
     const imageCount = Array.isArray(data.images) ? data.images.length : 0;
-    if (!confirm(`${data.vtubers.length} 人分${imageCount ? `・画像 ${imageCount} 枚` : ""}のデータを読み込みますか？\n同じ Vtuber のデータは、バックアップの内容で上書きされます。`)) return;
+    if (!confirm(`${data.vtubers.length} 人分${imageCount ? `・画像 ${imageCount} 枚` : ""}のデータを読み込みますか？\n同じ推しのデータは、バックアップの内容で上書きされます。`)) return;
 
     // 項目・テンプレート
     const settings = {};
