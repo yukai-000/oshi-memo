@@ -5,7 +5,7 @@
 // サーバーやログインは使いません。保存の処理は store.js にまとめています。
 // ============================================================
 
-import * as store from "./store.js?v=20261008-2"; // ?v= は更新時に変えるバージョン番号
+import * as store from "./store.js?v=20261008-3"; // ?v= は更新時に変えるバージョン番号
 
 // 初回の色の項目 (これも自由に追加・削除・編集できる)
 const DEFAULT_COLOR_FIELDS = [
@@ -343,7 +343,7 @@ function renderDetail() {
   if (!v) {
     main.innerHTML = backupNoticeHtml() + birthdayBannerHtml() + `
       <section class="card welcome">
-        <p>左上の <b>☰</b> から Vtuber を選んでください。</p>
+        <p>左上の <b>☰</b> から推しを選んでください。</p>
         <button id="btn-welcome-menu" class="primary">☰ 一覧をひらく</button>
       </section>`;
     $("#btn-welcome-menu").onclick = openDrawer;
