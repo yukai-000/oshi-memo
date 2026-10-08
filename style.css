@@ -28,8 +28,10 @@
   --wobbly: 255px 15px 225px 15px / 15px 225px 15px 255px;
 }
 /* ダークモード = 夜のノート */
-@media (prefers-color-scheme: dark) {
-  :root {
+/* 夜のノート (暗い画面)
+   - ☀/🌙 ボタンで「夜」を選んだとき (data-theme="dark")
+   - 何も選んでいないときは、端末 (Chrome や Windows) がダークモードのとき */
+:root[data-theme="dark"] {
     --paper: #22201d;
     --sheet: #2c2925;
     --ink: #ede6da;
@@ -43,6 +45,22 @@
     --photo: #3a3631;
     --shadow: rgba(0, 0, 0, 0.35);
     --danger: #e08a7f;
+  }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+      --paper: #22201d;
+      --sheet: #2c2925;
+      --ink: #ede6da;
+      --muted: #a39887;
+      --line: #47413a;
+      --grid: rgba(237, 230, 218, 0.05);
+      --tape-pink: rgba(200, 120, 140, 0.5);
+      --tape-blue: rgba(110, 160, 185, 0.5);
+      --tape-yellow: rgba(200, 175, 90, 0.5);
+      --marker: rgba(200, 120, 140, 0.45);
+      --photo: #3a3631;
+      --shadow: rgba(0, 0, 0, 0.35);
+      --danger: #e08a7f;
   }
 }
 
@@ -384,9 +402,9 @@ dialog label { display: block; margin-bottom: 14px; font-family: var(--hand); fo
 dialog label textarea { color: var(--ink); font-family: var(--body); }
 .dlg-buttons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
 .hint { color: var(--muted); font-size: 12px; }
-#field-rows { list-style: none; padding: 0; margin: 0 0 12px; }
-#field-rows li { display: flex; gap: 4px; margin-bottom: 6px; align-items: center; }
-#field-rows li button { padding: 2px 9px; }
+#field-rows, #color-field-rows { list-style: none; padding: 0; margin: 0 0 12px; }
+#field-rows li, #color-field-rows li { display: flex; gap: 4px; margin-bottom: 6px; align-items: center; }
+#field-rows li button, #color-field-rows li button { padding: 2px 9px; }
 
 /* ---------- ログイン画面 ---------- */
 .login, .loading {
@@ -800,3 +818,7 @@ a.button { color: var(--ink); text-decoration: none; display: inline-block; }
 .lightbox-tools a.button { color: #f5f0e6; }
 /* 表の「名前」の列が狭くなりすぎないように */
 .manual td:nth-child(2) { min-width: 7em; }
+
+/* ☀ / 🌙 の切り替えボタン */
+#btn-theme { font-size: 17px; line-height: 1; padding: 4px 8px; }
+.manual-page .topbar-right { margin-left: auto; }

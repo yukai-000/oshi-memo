@@ -16,9 +16,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Klee+One:wght@400;600&family=Zen+Maru+Gothic:wght@400;500;700&display=swap">
+  <!-- 画面の明るさ (☀/🌙) を最初に決める -->
+  <script src="theme.js?v=20261008-5"></script>
   <!-- ?v=… は「バージョン番号」。アプリを更新したら数字を変えると、
        スマホなどに残っている古いファイルではなく、新しいファイルが必ず読み込まれる -->
-  <link rel="stylesheet" href="style.css?v=20261008-4">
+  <link rel="stylesheet" href="style.css?v=20261008-5">
 </head>
 <body>
   <!-- 読み込み中の表示 -->
@@ -29,6 +31,7 @@
     <button id="btn-menu" class="icon-btn" title="推しの一覧" aria-label="推しの一覧">☰</button>
     <h1>推しメモ帳</h1>
     <div class="topbar-right">
+      <button id="btn-theme" class="ghost" title="画面の明るさ">🌙</button>
       <button id="btn-fields" class="ghost" title="登録項目の編集・設定">⚙<span class="wide-only"> 項目・設定</span><span class="narrow-only"> 設定</span></button>
       <button id="btn-help" class="ghost" title="使い方・注意点">？<span class="wide-only"> 使い方・注意点</span></button>
     </div>
@@ -153,6 +156,6 @@
   <!-- type="module" にすると import が使える -->
   <!-- zip の書き出し・読み込み用ライブラリ (JSZip, MIT ライセンス) -->
   <script src="lib/jszip.min.js"></script>
-  <script type="module" src="app.js?v=20261008-4"></script>
+  <script type="module" src="app.js?v=20261008-5"></script>
 </body>
 </html>
