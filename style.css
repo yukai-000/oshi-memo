@@ -1,0 +1,748 @@
+/* ============================================================
+   推しメモ帳 - 推し活ノート風デザイン
+   ・生成り色の方眼ノート
+   ・チップはマスキングテープ、画像はポラロイド写真
+   ============================================================ */
+
+/* ---------- 色とフォントの設定 ---------- */
+:root {
+  --paper: #f5f0e6;                        /* 背景のノート */
+  --sheet: #fffdf8;                        /* カードの紙 */
+  --ink: #3b3530;                          /* 文字の墨色 */
+  --muted: #8a7f72;                        /* 薄い文字 */
+  --line: #ddd3c2;                         /* 罫線 */
+  --grid: rgba(140, 115, 85, 0.08);        /* 方眼の線 */
+  --pink: #e7a9b4;                         /* くすみピンク */
+  --blue: #9fc3d4;                         /* くすみ水色 */
+  --yellow: #ecd793;                       /* くすみ黄色 */
+  --tape-pink: rgba(231, 160, 175, 0.55);  /* マスキングテープ (半透明) */
+  --tape-blue: rgba(150, 190, 210, 0.55);
+  --tape-yellow: rgba(236, 210, 130, 0.6);
+  --marker: rgba(231, 160, 175, 0.45);     /* 蛍光ペン */
+  --photo: #ffffff;                        /* ポラロイドのフチ */
+  --shadow: rgba(80, 60, 40, 0.12);
+  --danger: #b9544a;
+  --hand: "Klee One", "Zen Maru Gothic", sans-serif;     /* 手書き風 (見出し) */
+  --body: "Zen Maru Gothic", "Hiragino Maru Gothic ProN", "Yu Gothic UI", sans-serif;
+  /* 手描きっぽいガタガタの角丸 */
+  --wobbly: 255px 15px 225px 15px / 15px 225px 15px 255px;
+}
+/* ダークモード = 夜のノート */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #22201d;
+    --sheet: #2c2925;
+    --ink: #ede6da;
+    --muted: #a39887;
+    --line: #47413a;
+    --grid: rgba(237, 230, 218, 0.05);
+    --tape-pink: rgba(200, 120, 140, 0.5);
+    --tape-blue: rgba(110, 160, 185, 0.5);
+    --tape-yellow: rgba(200, 175, 90, 0.5);
+    --marker: rgba(200, 120, 140, 0.45);
+    --photo: #3a3631;
+    --shadow: rgba(0, 0, 0, 0.35);
+    --danger: #e08a7f;
+  }
+}
+
+/* ---------- 全体 ---------- */
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: 15px;
+  line-height: 1.6;
+  /* 方眼ノートの背景 */
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+h1, h2 { font-family: var(--hand); font-weight: 600; }
+
+/* ---------- ボタン (手描き風の枠) ---------- */
+button, input, textarea { font: inherit; color: inherit; }
+button, a.button {
+  border: 1.5px solid var(--ink);
+  border-radius: var(--wobbly);
+  background: transparent;
+  padding: 5px 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: transform .15s, background .15s;
+}
+button:hover, a.button:hover { background: var(--grid); transform: rotate(-1deg); }
+button.primary { background: var(--ink); color: var(--sheet); }
+button.primary:hover { background: var(--ink); opacity: .88; }
+button.ghost { border-color: transparent; color: var(--muted); }
+button.ghost:hover { color: var(--ink); background: none; text-decoration: underline wavy var(--pink); }
+button.danger { color: var(--danger); border-color: var(--danger); }
+
+/* ---------- 入力欄 (ノートの罫線に書く感じ) ---------- */
+input[type=text], input[type=search], textarea {
+  width: 100%;
+  padding: 6px 2px;
+  border: none;
+  border-bottom: 1.5px solid var(--line);
+  background: transparent;
+  outline: none;
+  resize: vertical;
+}
+input:focus, textarea:focus { border-bottom-color: var(--pink); }
+::placeholder { color: var(--muted); opacity: .8; }
+
+/* ---------- マスキングテープの共通パーツ ---------- */
+.tape, .card::before, .login::before {
+  content: "";
+  position: absolute;
+  width: 96px;
+  height: 24px;
+  background: var(--tape-blue);
+  /* 端をギザギザに切ったような形 */
+  clip-path: polygon(0 0, 100% 0, calc(100% - 4px) 25%, 100% 50%, calc(100% - 4px) 75%, 100% 100%, 0 100%, 4px 75%, 0 50%, 4px 25%);
+}
+
+/* ---------- 上のバー ---------- */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 20px;
+  background: var(--sheet);
+  box-shadow: 0 1.5px 0 var(--line), 0 4px 14px var(--shadow);
+}
+.topbar h1 { font-size: 22px; margin: 0; letter-spacing: .04em; white-space: nowrap; }
+.topbar-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+#user-name {
+  font-size: 12px;
+  color: var(--muted);
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding-left: 10px;
+  border-left: 1px dashed var(--line);
+}
+/* 狭い画面でだけ表示する文字 */
+.narrow-only { display: none; }
+/* ☰ や ✕ の四角いボタン */
+.icon-btn {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  font-size: 20px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+/* ---------- ☰ で出てくる一覧 (ノートの目次ページ) ---------- */
+.drawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 30;
+  width: min(340px, 88vw);
+  padding: 18px 18px 16px 38px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  /* 紙 + 左端のピンクの余白線 */
+  background:
+    linear-gradient(90deg, transparent 24px, var(--pink) 24px, var(--pink) 25.5px, transparent 25.5px),
+    var(--sheet);
+  box-shadow: 6px 0 24px var(--shadow);
+  transform: translateX(-105%);
+  visibility: hidden;
+  transition: transform .25s ease, visibility .25s;
+}
+.drawer.open { transform: none; visibility: visible; }
+#drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 25;
+  background: rgba(40, 30, 20, .35);
+}
+.drawer-head { display: flex; align-items: center; justify-content: space-between; }
+.drawer-head h2 { margin: 0; font-size: 20px; }
+.drawer-head .icon-btn { width: 34px; height: 34px; font-size: 15px; }
+#vtuber-list { list-style: none; margin: 4px 0 0; padding: 0; overflow-y: auto; flex: 1; }
+#vtuber-list li {
+  padding: 8px 4px;
+  cursor: pointer;
+  border-bottom: 1px dashed var(--line);
+}
+#vtuber-list li .ruby { display: block; font-size: 11px; color: var(--muted); line-height: 1.2; }
+#vtuber-list li .name {
+  font-family: var(--hand);
+  font-weight: 600;
+  font-size: 17px;
+  padding: 0 2px;
+}
+#vtuber-list li:hover .name { background: linear-gradient(transparent 65%, var(--tape-blue) 65%); }
+/* 選択中は蛍光ペンを引いたように */
+#vtuber-list li.active .name { background: linear-gradient(transparent 55%, var(--marker) 55%); }
+#vtuber-list li small { display: block; color: var(--muted); font-size: 12px; }
+#vtuber-list li.no-hit { cursor: default; color: var(--muted); font-family: var(--hand); border: none; }
+
+/* ---------- 詳細 ---------- */
+main { width: 100%; max-width: 1100px; margin: 0 auto; padding: 40px 32px; }
+.welcome { text-align: center; padding: 40px 20px; font-family: var(--hand); }
+.welcome p { font-size: 17px; margin-top: 0; }
+.empty { color: var(--muted); font-family: var(--hand); }
+
+/* カード = テープで貼った紙 */
+.card {
+  position: relative;
+  background: var(--sheet);
+  border-radius: 3px;
+  padding: 26px 26px 22px;
+  margin-bottom: 34px;
+  box-shadow: 0 1px 0 var(--line), 0 8px 22px var(--shadow);
+}
+.card::before { top: -12px; left: 50%; transform: translateX(-50%) rotate(-2deg); }
+.card + .card::before { left: 28px; transform: rotate(-6deg); background: var(--tape-pink); }
+.card-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.card-head h2 { margin: 0; flex: 1; font-size: 22px; }
+/* Vtuber の名前は蛍光ペンで強調 */
+.card-head h2 .marker {
+  font-size: 30px;
+  padding: 0 4px;
+  background: linear-gradient(transparent 58%, var(--marker) 58%);
+}
+
+/* 項目の表 (点線の罫線) */
+.fields { display: grid; grid-template-columns: max-content 1fr; margin: 18px 0 0; }
+.fields dt, .fields dd { padding: 10px 0; border-bottom: 1px dashed var(--line); }
+.fields dt { font-family: var(--hand); color: var(--muted); font-size: 14px; padding-right: 22px; }
+.fields dd { margin: 0; display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; }
+.none { color: var(--muted); font-size: 13px; opacity: .7; }
+
+/* ---------- 押すとコピーできるチップ = マスキングテープ ---------- */
+.chip {
+  position: relative;
+  border: none;
+  border-radius: 0;
+  padding: 4px 16px;
+  font-size: 15px;
+  font-weight: 500;
+  background: var(--tape-pink);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 4px) 25%, 100% 50%, calc(100% - 4px) 75%, 100% 100%, 0 100%, 4px 75%, 0 50%, 4px 25%);
+  transform: rotate(-1.2deg);
+}
+.chip:nth-child(3n+2) { background: var(--tape-blue); transform: rotate(.8deg); }
+.chip:nth-child(3n) { background: var(--tape-yellow); transform: rotate(-.4deg); }
+.chip:hover { transform: rotate(0) translateY(-2px); background-blend-mode: multiply; filter: saturate(1.4); }
+.chip:active { transform: scale(.95); }
+/* コピーした直後に少しだけ表示 */
+.chip.copied { filter: saturate(1.6); }
+.chip.copied::after {
+  content: " ✓";
+  font-weight: 700;
+}
+
+/* ---------- フォルダ = ノートのインデックスタブ ---------- */
+.folders {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 18px 0 16px;
+  border-bottom: 1.5px solid var(--ink);
+  padding-left: 6px;
+}
+.folder-tab {
+  font-family: var(--hand);
+  font-weight: 600;
+  border: 1.5px solid var(--line);
+  border-bottom: none;
+  border-radius: 10px 10px 0 0;
+  background: var(--paper);
+  padding: 6px 16px 4px;
+  margin-bottom: -1.5px;
+  border-top: 5px solid var(--pink);
+}
+.folder-tab:nth-child(3n+2) { border-top-color: var(--blue); }
+.folder-tab:nth-child(3n) { border-top-color: var(--yellow); }
+.folder-tab:hover { transform: translateY(-2px); background: var(--paper); }
+.folder-tab.active {
+  background: var(--sheet);
+  border-left-color: var(--ink);
+  border-right-color: var(--ink);
+  border-top-width: 5px;
+  border-bottom: 1.5px solid var(--sheet);
+  padding-top: 9px;
+}
+.folder-tab small {
+  display: inline-block;
+  min-width: 20px;
+  margin-left: 4px;
+  font-family: var(--body);
+  font-size: 11px;
+  color: var(--muted);
+}
+.folder-tools { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+
+/* 画像を置く場所 = 切り取り線 */
+.dropzone {
+  border: 2px dashed var(--line);
+  border-radius: 4px;
+  padding: 18px;
+  text-align: center;
+  color: var(--muted);
+  font-family: var(--hand);
+  margin-bottom: 26px;
+}
+.dropzone::before { content: "✂ "; }
+.dropzone.over { border-color: var(--pink); background: var(--tape-pink); color: var(--ink); }
+
+/* ---------- 画像の一覧 = ポラロイド写真 ---------- */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 26px 20px;
+  padding: 4px 4px 10px;
+}
+.thumb {
+  position: relative;
+  background: var(--photo);
+  padding: 8px 8px 30px;
+  box-shadow: 0 2px 3px var(--shadow), 0 8px 16px var(--shadow);
+  transform: rotate(-1.5deg);
+  transition: transform .2s;
+}
+.thumb:nth-child(2n) { transform: rotate(1.2deg); }
+.thumb:nth-child(3n) { transform: rotate(-.6deg); }
+.thumb:hover { transform: rotate(0) scale(1.04); z-index: 1; }
+/* 3 枚に 1 枚はテープで留めてある */
+.thumb:nth-child(3n+1)::before {
+  content: "";
+  position: absolute;
+  top: -10px; left: 50%;
+  width: 64px; height: 20px;
+  transform: translateX(-50%) rotate(3deg);
+  background: var(--tape-yellow);
+  z-index: 1;
+}
+.thumb img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  display: block;
+  cursor: zoom-in;
+  background: var(--line);
+}
+.thumb .del {
+  position: absolute; bottom: 4px; right: 6px;
+  border: none;
+  padding: 0 6px;
+  font-size: 13px;
+  color: var(--muted);
+  opacity: 0;
+}
+.thumb:hover .del { opacity: 1; }
+/* スマホなどマウスが無い端末では削除ボタンを常に表示 */
+@media (hover: none) { .thumb .del { opacity: 1; } }
+.thumb .del:hover { color: var(--danger); background: none; }
+
+/* ---------- ダイアログ ---------- */
+dialog {
+  border: none;
+  border-radius: 3px;
+  background: var(--sheet);
+  color: var(--ink);
+  width: min(480px, 92vw);
+  padding: 26px;
+  box-shadow: 0 12px 40px var(--shadow);
+}
+dialog::backdrop { background: rgba(40, 30, 20, .45); }
+dialog h2 { margin-top: 0; font-size: 20px; }
+dialog h2::after {
+  content: "";
+  display: block;
+  width: 72px; height: 8px;
+  margin-top: 2px;
+  background: var(--marker);
+  transform: rotate(-1deg);
+}
+dialog label { display: block; margin-bottom: 14px; font-family: var(--hand); font-size: 14px; color: var(--muted); }
+dialog label textarea { color: var(--ink); font-family: var(--body); }
+.dlg-buttons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+.hint { color: var(--muted); font-size: 12px; }
+#field-rows { list-style: none; padding: 0; margin: 0 0 12px; }
+#field-rows li { display: flex; gap: 4px; margin-bottom: 6px; align-items: center; }
+#field-rows li button { padding: 2px 9px; }
+
+/* ---------- ログイン画面 ---------- */
+.login, .loading {
+  position: relative;
+  margin: auto;
+  max-width: 400px;
+  text-align: center;
+}
+.loading { font-family: var(--hand); color: var(--muted); }
+.login {
+  background: var(--sheet);
+  padding: 44px 32px 36px;
+  box-shadow: 0 8px 22px var(--shadow);
+  transform: rotate(-.6deg);
+}
+.login::before { top: -12px; left: 50%; transform: translateX(-50%) rotate(3deg); background: var(--tape-pink); }
+.login h1 { font-size: 30px; margin: 0 0 4px; }
+.login p { color: var(--muted); font-size: 14px; }
+
+/* ---------- 拡大表示 ---------- */
+#lightbox {
+  position: fixed; inset: 0;
+  background: rgba(30, 24, 18, .88);
+  display: flex; flex-direction: column; gap: 14px;
+  align-items: center; justify-content: center;
+  z-index: 10;
+}
+.lightbox-tools { display: flex; gap: 10px; }
+.lightbox-tools button, .lightbox-tools a.button {
+  color: #f5f0e6; border-color: #f5f0e6; text-decoration: none;
+}
+a.button:not([href]) { opacity: .4; pointer-events: none; }
+
+/* ---------- 通知 = 付箋 ---------- */
+#toast {
+  position: fixed; bottom: 26px; left: 50%;
+  transform: translateX(-50%) rotate(-2deg);
+  background: #f3e2a0;
+  color: #3b3530;
+  font-family: var(--hand);
+  font-weight: 600;
+  padding: 12px 22px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, .18);
+  z-index: 20;
+  max-width: 90vw;
+  text-align: center;
+}
+
+/* ---------- スマホなど狭い画面 ---------- */
+@media (max-width: 720px) {
+  .topbar { padding: 8px 12px; gap: 6px; }
+  .topbar h1 { font-size: 18px; }
+  .wide-only { display: none; }
+  .narrow-only { display: inline; }
+  main { padding: 30px 14px; }
+  .card { padding: 22px 16px 18px; }
+  .card-head h2 .marker { font-size: 24px; }
+  .fields { grid-template-columns: 1fr; }
+  .fields dt { border-bottom: none; padding-bottom: 0; }
+  .grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 20px 14px; }
+}
+
+/* ---------- 色の見本 (髪の色・目の色など) = 絵の具の色見本カード ---------- */
+.swatches { gap: 12px 14px !important; }
+.swatch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  border: none;
+  border-radius: 0;
+  padding: 5px 5px 4px;
+  background: var(--photo);
+  box-shadow: 0 1px 2px var(--shadow), 0 4px 10px var(--shadow);
+  transform: rotate(-1deg);
+}
+.swatch:nth-child(2n) { transform: rotate(1.2deg); }
+.swatch:hover { transform: rotate(0) translateY(-2px); background: var(--photo); }
+.swatch-color {
+  width: 48px;
+  height: 40px;
+  border: 1px solid rgba(0, 0, 0, .08);
+}
+.swatch-hex {
+  font-size: 11px;
+  font-family: ui-monospace, "SF Mono", Consolas, monospace;
+  color: var(--muted);
+  letter-spacing: .03em;
+}
+.swatch.copied .swatch-hex::after { content: " ✓"; color: var(--ink); font-weight: 700; }
+
+/* 編集ダイアログの色の入力 */
+.color-edit { margin-bottom: 14px; }
+.color-label { display: block; font-family: var(--hand); font-size: 14px; color: var(--muted); }
+.color-row { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+.color-row input[type=color] {
+  width: 40px; height: 32px;
+  padding: 2px;
+  border: 1.5px solid var(--line);
+  background: var(--photo);
+  cursor: pointer;
+}
+.color-row .hex { max-width: 110px; font-family: ui-monospace, "SF Mono", Consolas, monospace; }
+.color-row .rm { padding: 0 8px; border-color: transparent; color: var(--muted); }
+.add-color { font-size: 13px; padding: 2px 12px; margin-top: 2px; }
+dialog h3 {
+  font-family: var(--hand);
+  font-size: 16px;
+  margin: 18px 0 0;
+  padding-top: 12px;
+  border-top: 1px dashed var(--line);
+}
+
+/* ---------- アイコン ---------- */
+/* 詳細画面: 名前の下の丸いアイコン (白フチ + 影で写真を貼ったように) */
+.icon-area {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 14px;
+}
+.icon-frame {
+  width: 104px;
+  height: 104px;
+  padding: 0;
+  border-radius: 50%;
+  border: 5px solid var(--photo);
+  background: var(--paper);
+  box-shadow: 0 2px 4px var(--shadow), 0 6px 14px var(--shadow);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.icon-frame:hover { transform: rotate(-3deg) scale(1.03); background: var(--paper); }
+.icon-frame img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.icon-frame span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  border: 2px dashed var(--line);
+  border-radius: 50%;
+  font-family: var(--hand);
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+#btn-icon-remove { font-size: 12px; }
+
+/* 推しリスト: 左側の小さいアイコン */
+#vtuber-list li:not(.no-hit) { display: flex; align-items: center; gap: 12px; }
+.li-text { min-width: 0; }
+.avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 2.5px solid var(--photo);
+  box-shadow: 0 1px 4px var(--shadow);
+}
+/* アイコン未登録: 名前の 1 文字目を色付きの丸に */
+.avatar.no-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--tape-pink);
+  font-family: var(--hand);
+  font-weight: 600;
+  font-size: 18px;
+}
+#vtuber-list li:nth-child(3n+2) .avatar.no-icon { background: var(--tape-blue); }
+#vtuber-list li:nth-child(3n) .avatar.no-icon { background: var(--tape-yellow); }
+#vtuber-list li.active .avatar { border-color: var(--pink); }
+
+/* ---------- お気に入り・投稿ボタン ---------- */
+.card-head h2 { display: flex; align-items: center; gap: 6px; }
+.fav-btn {
+  border: none;
+  padding: 0 4px;
+  font-size: 26px;
+  line-height: 1;
+  color: var(--muted);
+}
+.fav-btn:hover { background: none; transform: scale(1.15) rotate(-8deg); }
+.fav-btn.on { color: #e0a83a; }
+.post-btn { background: var(--ink); color: var(--sheet); }
+.post-btn:hover { background: var(--ink); opacity: .88; }
+
+/* 推しリストの右端の印 (🎂 ★) */
+.li-marks { margin-left: auto; display: flex; gap: 4px; font-size: 15px; flex-shrink: 0; }
+.fav-mark { color: #e0a83a; }
+.avatar.small { width: 30px; height: 30px; font-size: 13px; border-width: 2px; }
+
+/* ---------- 誕生日 ---------- */
+/* 画面上部のお知らせ = 付箋 */
+.bday-banner {
+  position: relative;
+  background: #f3e2a0;
+  color: #3b3530;
+  padding: 14px 18px 10px;
+  margin: 0 0 30px;
+  box-shadow: 0 6px 16px var(--shadow);
+  transform: rotate(-.5deg);
+}
+.bday-banner h3 { font-family: var(--hand); font-size: 16px; margin: 0 0 6px; }
+.bday-banner ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 18px; }
+.bday-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  padding: 4px 2px;
+  color: #3b3530;
+}
+.bday-item:hover { background: rgba(0, 0, 0, .05); }
+.bday-name { font-family: var(--hand); font-weight: 600; }
+.bday-date { font-size: 12px; opacity: .7; }
+.bday-left {
+  font-family: var(--hand);
+  font-weight: 600;
+  font-size: 13px;
+  padding: 0 8px;
+  background: linear-gradient(transparent 50%, var(--marker) 50%);
+}
+.bday-left.today { color: var(--danger); }
+.bday-text { font-family: var(--hand); font-weight: 600; margin-right: 8px; }
+.bday-edit { display: flex; gap: 8px; margin-top: 4px; }
+
+/* ---------- リンク ---------- */
+.link-chip {
+  display: inline-block;
+  padding: 3px 12px;
+  color: var(--ink);
+  text-decoration: none;
+  font-weight: 500;
+  border: 1.5px solid var(--ink);
+  border-radius: var(--wobbly);
+}
+.link-chip:hover { background: var(--grid); transform: rotate(-1deg); }
+.link-row { display: flex; gap: 6px; align-items: center; margin: 6px 0; }
+.link-row .link-label { flex: 0 0 34%; }
+.link-row .rm { padding: 0 8px; border-color: transparent; color: var(--muted); flex-shrink: 0; }
+.add-link { font-size: 13px; padding: 2px 12px; margin-top: 2px; }
+
+/* セレクトボックス */
+select {
+  font: inherit;
+  color: var(--ink);
+  background: transparent;
+  border: none;
+  border-bottom: 1.5px solid var(--line);
+  padding: 4px 2px;
+}
+
+/* ---------- ポラロイドのひとことメモ ---------- */
+.thumb .memo {
+  position: absolute;
+  left: 8px;
+  right: 28px;
+  bottom: 4px;
+  margin: 0;
+  font-family: var(--hand);
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---------- 拡大表示 (お絵描き用の確認機能) ---------- */
+#lightbox { gap: 10px; padding: 12px; }
+.lb-stage {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  touch-action: none;  /* 指でのズーム・移動をアプリ側で扱う */
+  cursor: zoom-out;
+}
+#lightbox .lb-stage img {
+  max-width: 100%;
+  max-height: 100%;
+  padding: 0;
+  /* 白フチは影で付ける (スポイトの位置がずれないように) */
+  box-shadow: 0 0 0 8px var(--photo), 0 10px 30px rgba(0, 0, 0, .5);
+  cursor: grab;
+  user-select: none;
+  -webkit-user-drag: none;
+  transition: filter .2s;
+}
+#lightbox.picking .lb-stage img { cursor: crosshair; }
+.lightbox-tools { flex-wrap: wrap; justify-content: center; align-items: center; }
+.lightbox-tools button.on { background: #f5f0e6; color: #3b3530; }
+.lb-zoom { display: inline-flex; gap: 2px; }
+.lb-zoom button { padding: 5px 10px; min-width: 40px; }
+.lb-memo {
+  width: min(520px, 92vw) !important;
+  color: #f5f0e6 !important;
+  font-family: var(--hand);
+  text-align: center;
+  border-bottom-color: rgba(245, 240, 230, .4) !important;
+}
+.lb-memo::placeholder { color: rgba(245, 240, 230, .55); }
+/* スポイトで拾った色 */
+.lb-pick {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  background: #fffdf8;
+  color: #3b3530;
+  padding: 8px 12px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, .3);
+}
+.lb-pick-color { width: 34px; height: 34px; border: 3px solid #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, .3); }
+.lb-pick-hex { font-family: ui-monospace, "SF Mono", Consolas, monospace; font-size: 14px; }
+.lb-pick button { color: #3b3530; border-color: #3b3530; }
+.lb-pick button.primary { background: #3b3530; color: #fffdf8; }
+.lb-pick select { color: #3b3530; }
+
+/* 設定画面のバックアップのボタン */
+.backup-buttons { display: flex; gap: 8px; }
+#post-template { font-size: 14px; }
+
+@media (max-width: 720px) {
+  .lightbox-tools { gap: 6px; }
+  .lightbox-tools button, .lightbox-tools a.button { padding: 4px 9px; font-size: 13px; }
+  .bday-banner { padding: 12px 12px 8px; }
+  .link-row { flex-wrap: wrap; }
+  .link-row .link-label { flex: 1 1 100%; }
+  .link-row .link-url { flex: 1; }
+}
+
+/* ---------- 端末保存版のお知らせ・注意点 ---------- */
+/* バックアップのお知らせ (水色の付箋) */
+.notice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  background: #d6e8f0;
+  color: #3b3530;
+  padding: 12px 16px;
+  margin: 0 0 26px;
+  box-shadow: 0 6px 16px var(--shadow);
+  transform: rotate(.4deg);
+}
+.notice p { margin: 0; flex: 1; min-width: 220px; font-size: 14px; }
+.notice button { color: #3b3530; border-color: #3b3530; }
+.help-list { padding-left: 20px; font-size: 14px; }
+.help-list li { margin-bottom: 8px; }
+.storage-info { padding-left: 20px; font-size: 13px; color: var(--muted); margin: 6px 0 0; }
+.backup-buttons { flex-wrap: wrap; }

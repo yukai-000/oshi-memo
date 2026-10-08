@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f0e6">
+  <meta name="description" content="Vtuber のファンマーク・ファンアートタグ・参考画像をまとめて保存できるメモ帳。データはあなたの端末の中だけに保存されます。">
+  <title>推しメモ帳</title>
+  <!-- タブのアイコンとスマホのホーム画面用アイコン -->
+  <link rel="icon" href="favicon.ico" sizes="32x32">
+  <link rel="icon" href="icon-192.png" type="image/png" sizes="192x192">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="apple-mobile-web-app-title" content="推しメモ帳">
+  <!-- フォント: Klee One (手書き風) と Zen Maru Gothic (丸ゴシック) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Klee+One:wght@400;600&family=Zen+Maru+Gothic:wght@400;500;700&display=swap">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- 読み込み中の表示 -->
+  <p id="loading" class="loading">読み込み中…</p>
+
+  <!-- 上のバー: 左に ☰ とタイトル、右に登録項目の編集とログイン情報 -->
+  <header class="topbar" id="topbar" hidden>
+    <button id="btn-menu" class="icon-btn" title="Vtuber の一覧" aria-label="Vtuber の一覧">☰</button>
+    <h1>推しメモ帳</h1>
+    <div class="topbar-right">
+      <button id="btn-fields" class="ghost" title="登録項目の編集・設定">⚙<span class="wide-only"> 項目・設定</span><span class="narrow-only"> 設定</span></button>
+      <button id="btn-help" class="ghost" title="はじめに・注意点">？<span class="wide-only"> 注意点</span></button>
+    </div>
+  </header>
+
+  <!-- ☰ を押すと左から出てくる Vtuber の一覧 -->
+  <div id="drawer-backdrop" hidden></div>
+  <aside class="drawer" id="drawer" aria-label="Vtuber の一覧">
+    <div class="drawer-head">
+      <h2>推しリスト</h2>
+      <button id="btn-close-menu" class="icon-btn" title="閉じる" aria-label="閉じる">✕</button>
+    </div>
+    <input id="search" type="search" placeholder="さがす… (名前・ふりがな・事務所など)">
+    <button id="btn-add-vtuber" class="primary">＋ Vtuber を追加</button>
+    <ul id="vtuber-list"></ul>
+  </aside>
+
+  <!-- 右側: 選んだ Vtuber の詳細 -->
+  <main id="detail" hidden></main>
+
+  <!-- Vtuber の追加・編集用ダイアログ -->
+  <dialog id="dlg-vtuber">
+    <form method="dialog">
+      <h2 id="dlg-vtuber-title">Vtuber を追加</h2>
+      <div id="vtuber-inputs"></div>
+      <div class="dlg-buttons">
+        <button value="cancel" formnovalidate>キャンセル</button>
+        <button value="ok" class="primary">保存</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- はじめに・注意点 -->
+  <dialog id="dlg-help">
+    <form method="dialog">
+      <h2>推しメモ帳へようこそ</h2>
+      <p>Vtuber のファンマーク・ファンアートタグ・色・参考画像をまとめて保存できるメモ帳です。</p>
+      <h3>⚠ 使う前に知っておいてほしいこと</h3>
+      <ul class="help-list">
+        <li><b>データはこの端末のこのブラウザの中だけに保存されます。</b>サーバーには送られないので、ほかの人に見られることはありません。</li>
+        <li><b>PC とスマホでデータは共有されません。</b>別々のメモ帳になります。お引っ越ししたいときは「⚙ 設定 → 画像も含めて書き出す」で作ったファイルを、別の端末で読み込んでください。</li>
+        <li><b>ブラウザの「閲覧データ(履歴・Cookie)の削除」をすると、データも消えます。</b>シークレットモード(プライベートブラウズ)では保存されません。</li>
+        <li><b>iPhone・iPad では、7 日間開かないとデータが消えることがあります。</b>Safari の共有ボタン →「ホーム画面に追加」して、そこから開くと消えにくくなります。</li>
+        <li><b>ときどきバックアップしてください。</b>端末の故障や機種変更に備えて、「⚙ 設定 → 書き出す」でファイルを保存しておくと安心です。</li>
+        <li>画像をたくさん保存すると端末の容量を使います。使っている容量は「⚙ 設定」で確認できます。</li>
+      </ul>
+      <div class="dlg-buttons">
+        <button value="ok" class="primary">わかりました</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- 登録項目の編集用ダイアログ -->
+  <dialog id="dlg-fields">
+    <form method="dialog">
+      <h2>項目・設定</h2>
+      <p class="hint">項目名を書き換えると名前変更、✕ で削除、↑↓ で並べ替えできます。</p>
+      <h3>文字の項目</h3>
+      <p class="hint">一番上の項目が一覧に表示される「見出し」になります。</p>
+      <ul id="field-rows"></ul>
+      <button type="button" id="btn-add-field">＋ 項目を追加</button>
+      <h3>色の項目</h3>
+      <p class="hint">髪の色・目の色など。1 つの項目に何色でも登録できます。</p>
+      <ul id="color-field-rows"></ul>
+      <button type="button" id="btn-add-color-field">＋ 色の項目を追加</button>
+      <h3>投稿テンプレート</h3>
+      <p class="hint">「𝕏 で投稿」を押したときの文章です。<b>{項目名}</b> の部分にその人の登録内容が入ります。<br>
+        例: {名前}さんのファンアートを描きました！ {ファンアートタグ}</p>
+      <textarea id="post-template" rows="3"></textarea>
+      <h3>バックアップ</h3>
+      <p class="hint">データはこの端末の中だけにあります。ときどき書き出して、PC やクラウドに保存しておくと安心です。<br>
+        「画像も含めて」のファイルを別の端末で読み込めば、データのお引っ越しもできます。<br>
+        読み込むと、同じ Vtuber のデータは書き出したときの内容に戻ります。</p>
+      <div class="backup-buttons">
+        <button type="button" id="btn-export-zip" class="primary">画像も含めて書き出す (.zip)</button>
+        <button type="button" id="btn-export">文字だけ書き出す (.json)</button>
+        <button type="button" id="btn-import">読み込む</button>
+        <input id="import-input" type="file" accept=".json,.zip,application/json,application/zip" hidden>
+      </div>
+      <h3>保存について</h3>
+      <ul id="storage-info" class="storage-info"></ul>
+      <div class="dlg-buttons">
+        <button value="cancel" formnovalidate>キャンセル</button>
+        <button value="ok" class="primary">保存</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- 画像の拡大表示 (反転・白黒・ズーム・スポイト・ひとことメモ) -->
+  <div id="lightbox" hidden>
+    <div id="lb-stage" class="lb-stage">
+      <img id="lightbox-img" alt="" draggable="false">
+    </div>
+    <!-- スポイトで拾った色 -->
+    <div id="lb-pick" class="lb-pick" hidden>
+      <span id="lb-pick-color" class="lb-pick-color"></span>
+      <span id="lb-pick-hex" class="lb-pick-hex"></span>
+      <button id="lb-pick-copy">コピー</button>
+      <select id="lb-pick-field" aria-label="登録する色の項目"></select>
+      <button id="lb-pick-add" class="primary">に登録</button>
+    </div>
+    <input id="lb-memo" class="lb-memo" type="text" placeholder="ひとことメモ (例: 前髪の分け目) … Enter で保存">
+    <div class="lightbox-tools">
+      <button id="lb-flip" title="左右反転">⇆ 反転</button>
+      <button id="lb-gray" title="白黒表示 (明るさの確認)">◐ 白黒</button>
+      <button id="lb-picker" title="スポイト (色を拾う)">💧 スポイト</button>
+      <span class="lb-zoom">
+        <button id="lb-zoom-out" title="縮小">−</button>
+        <button id="lb-zoom-label" title="押すと等倍に戻す">100%</button>
+        <button id="lb-zoom-in" title="拡大">＋</button>
+      </span>
+      <a id="lightbox-download" class="button" download>保存</a>
+      <button id="lightbox-close">閉じる</button>
+    </div>
+  </div>
+
+  <!-- 「コピーしました」などの通知 -->
+  <div id="toast" hidden></div>
+
+  <!-- type="module" にすると import が使える -->
+  <!-- zip の書き出し・読み込み用ライブラリ (JSZip, MIT ライセンス) -->
+  <script src="lib/jszip.min.js"></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
