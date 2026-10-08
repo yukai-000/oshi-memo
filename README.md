@@ -31,39 +31,3 @@ Vtuber のファンマーク・ファンアートタグ・色・参考画像を�
 6. **画像をたくさん保存すると、端末の容量を使います。**
    画像は元の画質のまま保存されます。使っている容量は「⚙ 設定 → 保存について」で確認できます。
 7. このアプリの不具合などでデータが失われても、作者は責任を負えません。大事なデータはバックアップしてください。
-
-## 公開のしかた（GitHub Pages）
-
-このリポジトリは HTML・CSS・JavaScript だけで動くので、GitHub Pages でそのまま公開できます（無料）。
-
-1. GitHub でこのリポジトリを開く
-2. 「Settings」→ 左のメニューの「Pages」
-3. 「Build and deployment」の「Source」を **Deploy from a branch** にする
-4. 「Branch」を **main**、フォルダを **/ (root)** にして「Save」
-5. 1〜2 分待つと、ページの上に `https://ユーザー名.github.io/oshi-memo/` のような URL が表示されます
-
-更新したいときは、ファイルを変更して main ブランチに push すれば、数分で自動的に反映されます。
-
-## 自分の PC で動かして確認する方法
-
-ファイルを直接ダブルクリックで開くと動かない機能があるので、かんたんなサーバーを使います（Python が必要）。
-
-```
-cd oshi-memo
-python -m http.server 8000
-```
-
-ブラウザで <http://localhost:8000> を開きます。終了は `Ctrl + C` です。
-
-## ファイルの構成
-
-| ファイル | 役割 |
-| --- | --- |
-| `index.html` | 画面の骨組み |
-| `style.css` | 見た目（推し活ノート風デザイン） |
-| `app.js` | 画面の動き |
-| `store.js` | データの保存（ブラウザの IndexedDB） |
-| `lib/jszip.min.js` | zip の書き出し・読み込み（[JSZip](https://stuk.github.io/jszip/)、MIT ライセンス） |
-| `manifest.webmanifest`・アイコン画像 | ホーム画面に追加したときの名前とアイコン |
-
-フォントは Google Fonts の [Klee One](https://fonts.google.com/specimen/Klee+One) と [Zen Maru Gothic](https://fonts.google.com/specimen/Zen+Maru+Gothic)（SIL Open Font License）を使っています。
