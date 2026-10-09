@@ -115,8 +115,11 @@ function latestNewsId() {
 function showNews(seenId) {
   const unread = NEWS.filter((n) => n.id > seenId);
   if (!unread.length) return;
-  $("#news-body").innerHTML = unread.map((n) =>
-    `<h3>${esc(n.date)}</h3><ul class="help-list">${n.items.map((t) => `<li>${esc(t)}</li>`).join("")}</ul>`
+  // 同じ日付のお知らせは、1 つの見出しにまとめて表示する (新しい順のまま)
+  const byDate = new Map();
+  for (const n of unread) byDate.set(n.date, [...(byDate.get(n.date) || []), ...n.items]);
+  $("#news-body").innerHTML = [...byDate].map(([date, items]) =>
+    `<h3>${esc(date)}</h3><ul class="help-list">${items.map((t) => `<li>${esc(t)}</li>`).join("")}</ul>`
   ).join("");
   $("#dlg-news").showModal();
   store.saveSettings({ newsSeen: latestNewsId() }).catch(fail);
