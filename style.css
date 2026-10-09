@@ -500,6 +500,28 @@ a.button:not([href]) { opacity: .4; pointer-events: none; }
 
 /* 編集ダイアログの色の入力 */
 .color-edit { margin-bottom: 14px; }
+/* ---------- 推しごとの「非表示」 (編集画面) ---------- */
+.field-edit { position: relative; }
+/* 項目名の右上に置く小さなボタン */
+.hide-toggle {
+  position: absolute;
+  top: -2px;
+  right: 0;
+  font-size: 12px;
+  padding: 0 8px;
+  color: var(--muted);
+}
+/* 非表示にした項目は薄くして、「この推しでは非表示」と書く */
+.field-edit.is-hidden > :not(.hide-toggle) { opacity: .4; }
+.field-edit.is-hidden::after {
+  content: "この推しでは非表示";
+  position: absolute;
+  top: 0;
+  right: 76px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.field-edit.is-hidden .hide-toggle { color: var(--ink); border-color: var(--ink); }
 .color-label { display: block; font-family: var(--hand); font-size: 14px; color: var(--muted); }
 .color-row { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
 .color-row input[type=color] {

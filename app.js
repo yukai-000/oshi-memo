@@ -88,6 +88,7 @@ const NEWS = [
     items: [
       "「デビュー日」などの日付の項目を追加しました。「⚙ 項目・設定」の「日付の項目」で、推し始めた日なども自由に追加できます。記念日の当日は画面の上にお知らせが出ます。",
       "誕生日に「年」も入れられるようになりました (入れなくても大丈夫です)。",
+      "推しごとに、項目を非表示にできるようになりました。「編集」で項目名の右の「非表示」を押してください (タグが無い推しなどに)。",
     ],
   },
   {
@@ -265,6 +266,9 @@ function todayDate() {
   return new Date(now.getFullYear(), now.getMonth(), now.getDate());
 }
 
+// この推しで非表示にしている項目の ID の一覧 (文字・色・日付の項目に共通)
+const hiddenOf = (v) => new Set(Array.isArray(v.hidden) ? v.hidden : []);
+
 // 「2021年5月3日」「10月21日」(年が無いとき) の表示
 const dateLabel = (x) => (x.y ? `${x.y}年` : "") + `${x.m}月${x.d}日`;
 
@@ -309,6 +313,7 @@ const annivText = (info) => (info.years > 0 ? `🎉 今日で${info.years}周年
 // 今日が記念日の項目の一覧 [{field, info}]
 const todaysAnniversaries = (v) =>
   state.dateFields
+    .filter((f) => !hiddenOf(v).has(f.id))
     .map((f) => ({ field: f, info: dateInfo((v.dates || {})[f.id]) }))
     .filter((x) => x.info && x.info.isToday);
 
@@ -454,7 +459,8 @@ function renderDetail() {
   const folders = v.folders || [];
 
   // 項目ごとの行 (値はチップにして押すとコピー)
-  const rows = state.fields.map((f) => {
+  const hidden = hiddenOf(v);
+  const rows = state.fields.filter((f) => !hidden.has(f.id)).map((f) => {
     const parts = splitValue(v.values[f.id] || "");
     const chips = parts.length
       ? parts.map((p) => `<button class="chip" data-copy="${esc(p)}" title="押すとコピー">${esc(p)}</button>`).join("")
@@ -463,7 +469,7 @@ function renderDetail() {
   }).join("");
 
   // 色の行 (色見本を押すとカラーコードをコピー)
-  const colorRows = state.colorFields.map((f) => {
+  const colorRows = state.colorFields.filter((f) => !hidden.has(f.id)).map((f) => {
     const list = ((v.colors || {})[f.id] || []).filter(isHex);
     const swatches = list.length
       ? list.map((hex) =>
@@ -482,7 +488,7 @@ function renderDetail() {
     : `<span class="none">未登録</span>`}</dd>`;
 
   // 日付の項目の行 (経過した年月を表示。記念日の当日だけ「今日で○周年！」)
-  const dateRows = state.dateFields.map((f) => {
+  const dateRows = state.dateFields.filter((f) => !hidden.has(f.id)).map((f) => {
     const info = dateInfo((v.dates || {})[f.id]);
     return `<dt>${esc(f.label)}</dt><dd>${info
       ? `<span class="bday-text">${info.label}</span>` +
@@ -642,6 +648,7 @@ function buildPostText(v) {
   const text = state.postTemplate.replace(/\{([^{}]+)\}/g, (all, label) => {
     const f = state.fields.find((x) => x.label === label.trim());
     if (!f) return all; // 無い項目名はそのまま残す
+    if (hiddenOf(v).has(f.id)) return ""; // この推しで非表示にしている項目は入れない
     return splitValue(v.values[f.id] || "").join(" ");
   });
   return text.trim();
@@ -653,7 +660,7 @@ function missingPostFields(v) {
     .map((m) => m[1].trim())
     .filter((label) => {
       const f = state.fields.find((x) => x.label === label);
-      return f && !(v.values[f.id] || "").trim();
+      return f && !hiddenOf(v).has(f.id) && !(v.values[f.id] || "").trim();
     });
 }
 
@@ -1063,24 +1070,31 @@ function openVtuberDialog(v) {
   if (!state.fields.length) return toast("読み込み中です。少し待ってください");
   state.editingId = v ? v.id : null;
   $("#dlg-vtuber-title").textContent = v ? "推しを編集" : "推しを追加";
+  // この推しで非表示にしている項目
+  const hidden = v ? hiddenOf(v) : new Set();
+  // 「非表示」ボタン (押すと「この推しでは表示しない」を切り替える)
+  const hideBtn = (id) => `<button type="button" class="hide-toggle" data-hide-id="${esc(id)}" aria-pressed="${hidden.has(id)}">${hidden.has(id) ? "表示する" : "非表示"}</button>`;
   // 登録項目の数だけ入力欄を作る (改行で複数登録できるよう textarea にする)
-  const texts = state.fields.map((f) =>
-    `<label>${esc(f.label)}<textarea data-field="${esc(f.id)}" rows="1">${esc((v && v.values[f.id]) || "")}</textarea></label>`
+  // 一番上の項目は一覧の「見出し」なので、非表示にはできない
+  const texts = state.fields.map((f, i) =>
+    `<div class="field-edit ${hidden.has(f.id) ? "is-hidden" : ""}">` +
+    `<label>${esc(f.label)}<textarea data-field="${esc(f.id)}" rows="1">${esc((v && v.values[f.id]) || "")}</textarea></label>` +
+    (i ? hideBtn(f.id) : "") + `</div>`
   ).join("") + `<p class="hint">改行すると別々にコピーできるチップになります。「#タグA #タグB」のように # 付きで並べても分かれます。</p>`;
   // カラー項目 (髪の色・目の色など)。1 つの項目に何色でも登録できる
   const colors = state.colorFields.map((f) => {
     const list = ((v && v.colors && v.colors[f.id]) || []).filter(isHex);
     return `
-      <div class="color-edit" data-color-field="${esc(f.id)}">
-        <span class="color-label">${esc(f.label)}</span>
+      <div class="color-edit field-edit ${hidden.has(f.id) ? "is-hidden" : ""}" data-color-field="${esc(f.id)}">
+        <span class="color-label">${esc(f.label)}</span>${hideBtn(f.id)}
         <div class="color-list">${list.map(colorRowHtml).join("")}</div>
         <button type="button" class="add-color">＋ 色を追加</button>
       </div>`;
   }).join("");
   // 誕生日と日付の項目 (年は入れなくても OK、月と日を選ぶ)
-  const dateEdit = (label, x, attr) => `
-    <div class="color-edit" ${attr}>
-      <span class="color-label">${esc(label)}</span>
+  const dateEdit = (label, x, attr, hideId) => `
+    <div class="color-edit field-edit ${hideId && hidden.has(hideId) ? "is-hidden" : ""}" ${attr}>
+      <span class="color-label">${esc(label)}</span>${hideId ? hideBtn(hideId) : ""}
       <div class="bday-edit">
         <input type="text" class="date-y" inputmode="numeric" maxlength="4" placeholder="年 (なくてもOK)" value="${isDate(x) && x.y ? x.y : ""}">
         <select class="date-m">${options(12, isDate(x) ? x.m : 0, "月")}</select>
@@ -1088,7 +1102,7 @@ function openVtuberDialog(v) {
       </div>
     </div>`;
   const birthday = dateEdit("誕生日", v && v.birthday, 'id="bday-edit"');
-  const dates = state.dateFields.map((f) => dateEdit(f.label, v && v.dates && v.dates[f.id], `data-date-field="${esc(f.id)}"`)).join("");
+  const dates = state.dateFields.map((f) => dateEdit(f.label, v && v.dates && v.dates[f.id], `data-date-field="${esc(f.id)}"`, f.id)).join("");
   // リンク (いくつでも登録できる)
   const links = `
     <div class="color-edit">
@@ -1116,6 +1130,15 @@ function normalizeHex(s) {
 
 // カラー入力欄の操作 (中身が作り直されても動くよう、親要素でまとめて受け取る)
 $("#vtuber-inputs").addEventListener("click", (e) => {
+  // 「非表示」⇔「表示する」の切り替え (保存を押すまで反映しない)
+  const hb = e.target.closest(".hide-toggle");
+  if (hb) {
+    const on = hb.getAttribute("aria-pressed") !== "true";
+    hb.setAttribute("aria-pressed", on);
+    hb.textContent = on ? "表示する" : "非表示";
+    hb.closest(".field-edit").classList.toggle("is-hidden", on);
+    return;
+  }
   if (e.target.classList.contains("add-color")) {
     e.target.previousElementSibling.insertAdjacentHTML("beforeend", colorRowHtml("#cccccc"));
   } else if (e.target.classList.contains("add-link")) {
@@ -1163,6 +1186,12 @@ $("#dlg-vtuber").addEventListener("close", () => {
     if (x) dates[box.dataset.dateField] = x;
     else delete dates[box.dataset.dateField];
   });
+  // この推しで非表示にする項目 (削除した項目の分は残しておく)
+  const shown = new Set([...document.querySelectorAll("#vtuber-inputs .hide-toggle")].map((b) => b.dataset.hideId));
+  const hidden = [
+    ...[...((v && v.hidden) || [])].filter((id) => !shown.has(id)),
+    ...[...document.querySelectorAll('#vtuber-inputs .hide-toggle[aria-pressed="true"]')].map((b) => b.dataset.hideId),
+  ];
   // リンク (URL が正しいものだけ保存。「https://」を付け忘れても補う)
   const links = [...document.querySelectorAll("#vtuber-inputs .link-row")]
     .map((r) => {
@@ -1173,11 +1202,11 @@ $("#dlg-vtuber").addEventListener("close", () => {
     .filter((l) => safeUrl(l.url));
 
   if (v) {
-    store.updateVtuber(v.id, { values, colors, birthday, dates, links }).then(reload).catch(fail);
+    store.updateVtuber(v.id, { values, colors, birthday, dates, links, hidden }).then(reload).catch(fail);
   } else {
     const id = newId();
     // 書き込みはまず端末に反映されるので、すぐに選択できる
-    store.putVtuber({ id, values, colors, birthday, dates, links, folders: [DEFAULT_FOLDER], createdAt: Date.now() })
+    store.putVtuber({ id, values, colors, birthday, dates, links, hidden, folders: [DEFAULT_FOLDER], createdAt: Date.now() })
       .then(loadVtubers)
       .then(() => select(id))
       .catch(fail);
@@ -1272,7 +1301,7 @@ $("#dlg-fields").addEventListener("close", () => {
 //  - 「画像も含めて」: .zip ファイル (別の端末へのお引っ越しにも使える)
 // ------------------------------------------------------------
 // Vtuber 1 人分のうち、バックアップに入れる項目
-const BACKUP_KEYS = ["values", "colors", "links", "birthday", "dates", "favorite", "folders", "icon", "createdAt"];
+const BACKUP_KEYS = ["values", "colors", "links", "birthday", "dates", "hidden", "favorite", "folders", "icon", "createdAt"];
 
 // 文字の部分 (設定と Vtuber の情報) をまとめる
 function backupData() {
