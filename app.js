@@ -283,8 +283,12 @@ function todayDate() {
   return new Date(now.getFullYear(), now.getMonth(), now.getDate());
 }
 
+// メモ (文字でないときは空として扱う)
+const memoOf = (v) => (typeof v.memo === "string" ? v.memo : "");
+
 // この推しで非表示にしている項目の ID の一覧 (文字・色・日付の項目に共通)
-const hiddenOf = (v) => new Set(Array.isArray(v.hidden) ? v.hidden : []);
+//  (一番上の文字の項目は一覧の「見出し」なので、並べ替えで一番上になったときは非表示にしない)
+const hiddenOf = (v) => new Set((Array.isArray(v.hidden) ? v.hidden : []).filter((id) => id !== state.fields[0]?.id));
 
 // 「2021年5月3日」「10月21日」(年が無いとき) の表示
 const dateLabel = (x) => (x.y ? `${x.y}年` : "") + `${x.m}月${x.d}日`;
@@ -486,7 +490,7 @@ function renderDetail() {
   }).join("");
 
   // メモの行 (「メモを開く」を押すと開く。押してもコピーはしない)
-  const memo = (v.memo || "").trim();
+  const memo = memoOf(v).trim();
   const memoOpen = state.memoOpenId === v.id;
   const memoRow = `<dt>メモ</dt><dd>${memo
     ? `<button type="button" id="btn-memo" class="memo-toggle" aria-expanded="${memoOpen}">${memoOpen ? "メモを閉じる ▲" : "メモを開く ▼"}</button>` +
@@ -705,7 +709,8 @@ function openPost(v) {
   const missing = missingPostFields(v);
   const names = missing.map((l) => `「${l}」`).join("");
   // 当てはめた結果が空 = 使っている項目がこの人では未登録
-  if (!text) return toast(`${names}が未登録です。「編集」から登録してください`);
+  if (!text) return toast(missing.length ? `${names}が未登録です。「編集」から登録してください`
+    : "投稿テンプレートで使っている項目が、この推しでは非表示になっています");
   // 一部だけ未登録なら、知らせてから投稿画面を開く
   if (missing.length) toast(`${names}が未登録のまま投稿画面を開きます`);
   // X の投稿画面を開く (スマホでは X アプリが開く)
@@ -1097,7 +1102,7 @@ const linkRowHtml = (l = {}) => `
 const options = (max, selected, unit) =>
   `<option value="">--</option>` +
   Array.from({ length: max }, (_, i) => i + 1)
-    .map((n) => `<option value="${n}" ${n === selected ? "selected" : ""}>${n}${unit}</option>`).join("");
+    .map((n) => `<option value="${n}" ${n === +selected ? "selected" : ""}>${n}${unit}</option>`).join("");
 
 function openVtuberDialog(v) {
   // 登録項目がまだ読み込まれていないときは待ってもらう
@@ -1116,7 +1121,7 @@ function openVtuberDialog(v) {
     (i ? hideBtn(f.id) : "") + `</div>`
   ).join("") + `<p class="hint">改行すると別々にコピーできるチップになります。「#タグA #タグB」のように # 付きで並べても分かれます。</p>` +
     // メモ (自由に書ける。チップにはならず、コピーもされない)
-    `<label>メモ<textarea id="memo-input" rows="3" data-min-rows="3" placeholder="推しについてのメモ (押してもコピーされません)">${esc((v && v.memo) || "")}</textarea></label>`;
+    `<label>メモ<textarea id="memo-input" rows="3" data-min-rows="3" placeholder="推しについてのメモ (押してもコピーされません)">${esc(v ? memoOf(v) : "")}</textarea></label>`;
   // カラー項目 (髪の色・目の色など)。1 つの項目に何色でも登録できる
   const colors = state.colorFields.map((f) => {
     const list = ((v && v.colors && v.colors[f.id]) || []).filter(isHex);
@@ -1210,9 +1215,11 @@ $("#dlg-vtuber").addEventListener("close", () => {
   });
   // 日付の入力欄 1 つ分を読む (月と日が両方選ばれているときだけ。年は 4 桁の数字のときだけ)
   const readDate = (box) => {
-    const m = +box.querySelector(".date-m").value, d = +box.querySelector(".date-d").value;
+    const m = +box.querySelector(".date-m").value;
+    let d = +box.querySelector(".date-d").value;
     const y = box.querySelector(".date-y").value.trim().replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0));
     if (!m || !d) return null;
+    d = Math.min(d, new Date(2000, m, 0).getDate()); // 2000 年はうるう年なので 2/29 は残る
     return /^\d{4}$/.test(y) && +y >= 1 ? { y: +y, m, d } : { m, d };
   };
   const birthday = readDate($("#bday-edit"));
@@ -1227,7 +1234,7 @@ $("#dlg-vtuber").addEventListener("close", () => {
   // この推しで非表示にする項目 (削除した項目の分は残しておく)
   const shown = new Set([...document.querySelectorAll("#vtuber-inputs .hide-toggle")].map((b) => b.dataset.hideId));
   const hidden = [
-    ...[...((v && v.hidden) || [])].filter((id) => !shown.has(id)),
+    ...[...(v ? hiddenOf(v) : [])].filter((id) => !shown.has(id)),
     ...[...document.querySelectorAll('#vtuber-inputs .hide-toggle[aria-pressed="true"]')].map((b) => b.dataset.hideId),
   ];
   // リンク (URL が正しいものだけ保存。「https://」を付け忘れても補う)
