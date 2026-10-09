@@ -420,13 +420,17 @@ function renderList() {
     const text = normalize(Object.values(v.values || {}).join(" "));
     if (q && !text.includes(q)) continue;
     const li = document.createElement("li");
+    // この推しで非表示にしている項目は、一覧の小さな文字にも出さない (検索には使う)
+    const hidden = hiddenOf(v), vals = v.values || {};
+    const ruby = ff && !hidden.has(ff.id) ? vals[ff.id] : "";
+    const small = sub && !hidden.has(sub.id) ? vals[sub.id] : "";
     // 左にアイコン、右に ふりがな / 名前 / 事務所
     li.innerHTML =
       avatarHtml(v, "avatar") +
       `<div class="li-text">` +
-      (ff && v.values[ff.id] ? `<span class="ruby">${esc(v.values[ff.id])}</span>` : "") +
+      (ruby ? `<span class="ruby">${esc(ruby)}</span>` : "") +
       `<span class="name">${esc(titleOf(v))}</span>` +
-      (sub && v.values[sub.id] ? `<small>${esc(v.values[sub.id])}</small>` : "") +
+      (small ? `<small>${esc(small)}</small>` : "") +
       `</div>` +
       // 右端の印: 今日が記念日なら 🎉、誕生日のカウントダウン中なら 🎂、お気に入りなら ★
       `<span class="li-marks">${todaysAnniversaries(v).length ? "🎉" : ""}${birthdayInfo(v)?.counting ? "🎂" : ""}${v.favorite ? '<span class="fav-mark">★</span>' : ""}</span>`;
