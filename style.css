@@ -909,3 +909,21 @@ a.button { color: var(--ink); text-decoration: none; display: inline-block; }
   letter-spacing: .05em;
   color: var(--muted);
 }
+
+/* ---------- 確認・入力のポップアップ (ブラウザの確認画面の代わり) ---------- */
+#dlg-ask { width: min(420px, 92vw); }
+#ask-title { font-size: 19px; }
+#ask-body { font-size: 14px; line-height: 1.8; }
+/* 入力欄 (16px 以上にすると、iPhone で勝手に拡大されない) */
+#ask-input { display: block; width: 100%; margin-top: 6px; font-size: 16px; }
+/* 削除する画像の小さな見本 (ポラロイド風) */
+.ask-thumb {
+  display: block;
+  width: 96px;
+  margin: 4px 0 10px;
+  border: 6px solid var(--photo);
+  box-shadow: 0 3px 10px var(--shadow);
+}
+/* 元に戻せない操作のボタン (赤) */
+button.danger-fill { background: var(--danger); border-color: var(--danger); color: #fff; }
+button.danger-fill:hover { background: var(--danger); opacity: .88; }

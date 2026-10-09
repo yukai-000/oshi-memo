@@ -290,6 +290,46 @@ function todayDate() {
   return new Date(now.getFullYear(), now.getMonth(), now.getDate());
 }
 
+// ------------------------------------------------------------
+// 確認・入力のポップアップ (ブラウザの confirm / prompt の代わり)
+//  - 確認: askConfirm({ title, body, ok, danger }) → 押したのが実行ボタンなら true
+//  - 入力: askText({ title, label, value, body, ok }) → 入力した文字 (やめたときは null)
+//  ※ body は HTML として表示するので、人が入力した文字を入れるときは esc() を通すこと
+// ------------------------------------------------------------
+function askDialog({ title, body = "", ok, danger = false, cancel = "やめる", input = null }) {
+  const d = $("#dlg-ask"), inp = $("#ask-input");
+  $("#ask-title").textContent = title;
+  $("#ask-body").innerHTML = body;
+  $("#ask-body").hidden = !body;
+  $("#ask-ok").textContent = ok;
+  $("#ask-ok").className = danger ? "danger-fill" : "primary"; // 元に戻せない操作は赤いボタン
+  $("#ask-cancel").textContent = cancel;
+  $("#ask-field").hidden = !input;
+  if (input) {
+    $("#ask-label").textContent = input.label;
+    inp.value = input.value || "";
+  }
+  d.returnValue = "";
+  d.showModal();
+  // 入力: すぐ打てるように選んでおく / 確認: うっかり Enter で実行しないよう「やめる」を選んでおく
+  if (input) { inp.focus(); inp.select(); } else $("#ask-cancel").focus();
+  return new Promise((resolve) => {
+    d.addEventListener("close", () => {
+      const yes = d.returnValue === "ok";
+      resolve(input ? (yes ? inp.value : null) : yes);
+    }, { once: true });
+  });
+}
+const askConfirm = (o) => askDialog(o);
+const askText = ({ label, value, ...o }) => askDialog({ cancel: "キャンセル", ...o, input: { label, value } });
+// 入力欄で Enter (日本語の変換中は除く) を押したら実行ボタンと同じにする
+$("#ask-input").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.isComposing) {
+    e.preventDefault();
+    $("#dlg-ask").close("ok");
+  }
+});
+
 // メモ (文字でないときは空として扱う)
 const memoOf = (v) => (typeof v.memo === "string" ? v.memo : "");
 
@@ -673,8 +713,9 @@ function bindDetailEvents(v) {
   const iconInput = $("#icon-input");
   $("#btn-icon").onclick = () => iconInput.click();
   iconInput.onchange = () => iconInput.files[0] && setIcon(v, iconInput.files[0]).catch(fail);
-  if ($("#btn-icon-remove")) $("#btn-icon-remove").onclick = () => {
-    if (confirm("アイコンを外しますか？")) store.updateVtuber(v.id, { icon: undefined }).then(reload).catch(fail);
+  if ($("#btn-icon-remove")) $("#btn-icon-remove").onclick = async () => {
+    const yes = await askConfirm({ title: "アイコンを外しますか？", body: "名前の頭文字の表示に戻ります。あとからまた登録できます。", ok: "外す" });
+    if (yes) store.updateVtuber(v.id, { icon: undefined }).then(reload).catch(fail);
   };
   $("#btn-delete").onclick = () => deleteVtuber(v).catch(fail);
   $("#btn-add-folder").onclick = () => addFolder(v).catch(fail);
@@ -791,7 +832,7 @@ function select(id) {
 }
 
 async function deleteVtuber(v) {
-  if (!confirm(`「${titleOf(v)}」を削除しますか？\n保存した画像もすべて削除されます。`)) return;
+  if (!(await askConfirm({ title: `「${titleOf(v)}」を削除しますか？`, body: "登録した内容と、保存した参考画像がすべて削除されます。元に戻せません。", ok: "削除する", danger: true }))) return;
   await store.deleteVtuber(v.id);
   select(null);
   await reload();
@@ -813,7 +854,8 @@ function cleanFolderName(name, folders) {
 }
 
 async function addFolder(v) {
-  const name = cleanFolderName(prompt("フォルダ名 (例: 通常衣装、新衣装、ラフ資料)"), v.folders || []);
+  const input = await askText({ title: "フォルダを追加", label: "フォルダ名", body: "例: 通常衣装、新衣装、ラフ資料", ok: "追加する" });
+  const name = cleanFolderName(input, v.folders || []);
   if (!name) return;
   state.folder = name;
   await store.updateVtuber(v.id, { folders: [...(v.folders || []), name] });
@@ -822,7 +864,9 @@ async function addFolder(v) {
 
 async function renameFolder(v) {
   const old = state.folder;
-  const name = cleanFolderName(prompt("新しいフォルダ名", old), v.folders);
+  const input = await askText({ title: "フォルダ名を変更", label: "新しいフォルダ名", value: old, body: "同じ名前のフォルダは作れません。", ok: "変更する" });
+  if (input === null || input.trim() === old) return; // やめた・名前が同じときは何もしない
+  const name = cleanFolderName(input, v.folders);
   if (!name) return;
   // フォルダ名の一覧と、そのフォルダの画像すべての folder を書き換える
   const ids = state.images.filter((i) => i.folder === old).map((i) => i.id);
@@ -834,7 +878,13 @@ async function renameFolder(v) {
 
 async function deleteFolder(v) {
   const name = state.folder;
-  if (!confirm(`フォルダ「${name}」と中の画像をすべて削除しますか？`)) return;
+  const count = state.images.filter((i) => i.folder === name).length;
+  const yes = await askConfirm({
+    title: `フォルダ「${name}」を削除しますか？`,
+    body: count ? `中の画像 ${count} 枚もすべて削除されます。元に戻せません。` : "このフォルダは空です。",
+    ok: "削除する", danger: true,
+  });
+  if (!yes) return;
   const ids = state.images.filter((i) => i.folder === name).map((i) => i.id);
   const rest = v.folders.filter((f) => f !== name);
   state.folder = rest[0] || null;
@@ -943,7 +993,13 @@ document.addEventListener("paste", (e) => {
 
 async function deleteImage(id) {
   const img = state.images.find((i) => i.id === id);
-  if (!img || !confirm(`「${img.name}」を削除しますか？`)) return;
+  if (!img) return;
+  const yes = await askConfirm({
+    title: "この画像を削除しますか？",
+    body: `<img class="ask-thumb" src="${thumbUrl(img)}" alt="">元に戻せません。`,
+    ok: "削除する", danger: true,
+  });
+  if (!yes) return;
   await store.deleteImages([id]);
   await reload();
 }
@@ -1347,9 +1403,14 @@ function renderRows(key) {
   ul.querySelectorAll("[data-up]").forEach((b) => (b.onclick = () => move(key, +b.dataset.up, -1)));
   ul.querySelectorAll("[data-down]").forEach((b) => (b.onclick = () => move(key, +b.dataset.down, 1)));
   // 削除
-  ul.querySelectorAll("[data-remove]").forEach((b) => (b.onclick = () => {
+  ul.querySelectorAll("[data-remove]").forEach((b) => (b.onclick = async () => {
     const f = list[+b.dataset.remove];
-    if (!confirm(`項目「${f.label}」を削除しますか？`)) return;
+    const yes = await askConfirm({
+      title: `項目「${f.label}」を削除しますか？`,
+      body: "推しに登録してあった内容は消えません。同じ名前の項目を作り直しても戻らないので注意してください。",
+      ok: "削除する", danger: true,
+    });
+    if (!yes) return;
     list.splice(+b.dataset.remove, 1);
     renderRows(key);
   }));
@@ -1493,7 +1554,12 @@ $("#import-input").onchange = async (e) => {
     const data = JSON.parse(text || "{}");
     if (data.app !== "oshi-memo" || !Array.isArray(data.vtubers)) return toast("推しメモ帳のバックアップファイルではありません");
     const imageCount = Array.isArray(data.images) ? data.images.length : 0;
-    if (!confirm(`${data.vtubers.length} 人分${imageCount ? `・画像 ${imageCount} 枚` : ""}のデータを読み込みますか？\n同じ推しのデータは、バックアップの内容で上書きされます。`)) return;
+    const yes = await askConfirm({
+      title: "バックアップを読み込みますか？",
+      body: `推し ${data.vtubers.length} 人分${imageCount ? `・画像 ${imageCount} 枚` : ""}のデータを読み込みます。同じ推しのデータは、バックアップの内容で上書きされます。`,
+      ok: "読み込む",
+    });
+    if (!yes) return;
 
     // 項目・テンプレート
     const settings = {};

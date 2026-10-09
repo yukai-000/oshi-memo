@@ -20,7 +20,7 @@
   <script src="theme.js?v=20261009-2"></script>
   <!-- ?v=… は「バージョン番号」。アプリを更新したら数字を変えると、
        スマホなどに残っている古いファイルではなく、新しいファイルが必ず読み込まれる -->
-  <link rel="stylesheet" href="style.css?v=20261009-11">
+  <link rel="stylesheet" href="style.css?v=20261009-13">
 </head>
 <body>
   <!-- 読み込み中の表示 -->
@@ -102,6 +102,19 @@
     </form>
   </dialog>
 
+  <!-- 確認・入力のポップアップ (ブラウザの確認画面の代わり。中身は app.js の askDialog で入れる) -->
+  <dialog id="dlg-ask">
+    <form method="dialog">
+      <h2 id="ask-title"></h2>
+      <label id="ask-field" hidden><span id="ask-label"></span><input id="ask-input" type="text" maxlength="40" autocomplete="off"></label>
+      <div id="ask-body" class="hint"></div>
+      <div class="dlg-buttons">
+        <button value="cancel" id="ask-cancel" formnovalidate>やめる</button>
+        <button value="ok" id="ask-ok" class="primary">OK</button>
+      </div>
+    </form>
+  </dialog>
+
   <!-- 登録項目の編集用ダイアログ -->
   <dialog id="dlg-fields">
     <form method="dialog">
@@ -176,6 +189,6 @@
   <!-- type="module" にすると import が使える -->
   <!-- zip の書き出し・読み込み用ライブラリ (JSZip, MIT ライセンス) -->
   <script src="lib/jszip.min.js"></script>
-  <script type="module" src="app.js?v=20261009-12"></script>
+  <script type="module" src="app.js?v=20261009-13"></script>
 </body>
 </html>
