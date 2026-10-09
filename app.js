@@ -49,6 +49,7 @@ const state = {
   images: [],        // 選択中の Vtuber の画像の一覧 [{id, folder, name, thumb, ...}]
   selectedId: null,  // 選択中の Vtuber の ID
   folder: null,      // 選択中のフォルダ名
+  memoOpenId: null,  // 「メモを開く」で開いている推しの ID
   editingId: null,   // 編集ダイアログで編集中の Vtuber (null なら新規追加)
 };
 const thumbUrls = new Map();    // サムネイル画像の表示用 URL (作り直さないよう保存)
@@ -82,6 +83,13 @@ function fail(e) {
 // 新しいお知らせは、この一覧の「一番上」に足していく。
 // id は前のお知らせより大きい数字にすること (見たかどうかの判定に使う)。
 const NEWS = [
+  {
+    id: 4,
+    date: "2026/10/09",
+    items: [
+      "推しのページに「メモ」を追加しました。「編集」の文字の項目の下に自由に書けます。ページでは「メモを開く」を押すと表示されます (押してもコピーはされません)。",
+    ],
+  },
   {
     id: 3,
     date: "2026/10/09",
@@ -477,6 +485,14 @@ function renderDetail() {
     return `<dt>${esc(f.label)}</dt><dd>${chips}</dd>`;
   }).join("");
 
+  // メモの行 (「メモを開く」を押すと開く。押してもコピーはしない)
+  const memo = (v.memo || "").trim();
+  const memoOpen = state.memoOpenId === v.id;
+  const memoRow = `<dt>メモ</dt><dd>${memo
+    ? `<button type="button" id="btn-memo" class="memo-toggle" aria-expanded="${memoOpen}">${memoOpen ? "メモを閉じる ▲" : "メモを開く ▼"}</button>` +
+      `<div class="oshi-memo-text" ${memoOpen ? "" : "hidden"}>${esc(memo)}</div>`
+    : `<span class="none">未登録</span>`}</dd>`;
+
   // 色の行 (色見本を押すとカラーコードをコピー)
   const colorRows = state.colorFields.filter((f) => !hidden.has(f.id)).map((f) => {
     const list = ((v.colors || {})[f.id] || []).filter(isHex);
@@ -553,7 +569,7 @@ function renderDetail() {
         ${hasIcon(v) ? `<button id="btn-icon-remove" class="ghost">アイコンを外す</button>` : ""}
         <input id="icon-input" type="file" accept="image/*" hidden>
       </div>
-      <dl class="fields">${rows}${colorRows}${bdayRow}${dateRows}${linkRow}</dl>
+      <dl class="fields">${rows}${memoRow}${colorRows}${bdayRow}${dateRows}${linkRow}</dl>
     </section>
     <section class="card">
       <div class="card-head"><h2>参考画像</h2><button id="btn-add-folder">＋ フォルダ</button></div>
@@ -566,6 +582,15 @@ function renderDetail() {
 
 // 詳細画面のボタンに動きを付ける
 function bindDetailEvents(v) {
+  // メモを開く・閉じる
+  const memoBtn = document.getElementById("btn-memo");
+  if (memoBtn) memoBtn.onclick = () => {
+    state.memoOpenId = state.memoOpenId === v.id ? null : v.id;
+    const open = state.memoOpenId === v.id;
+    memoBtn.setAttribute("aria-expanded", open);
+    memoBtn.textContent = open ? "メモを閉じる ▲" : "メモを開く ▼";
+    memoBtn.nextElementSibling.hidden = !open;
+  };
   // チップを押すとコピー
   document.querySelectorAll("[data-copy]").forEach((b) => (b.onclick = () => {
     copy(b.dataset.copy);
@@ -1089,7 +1114,9 @@ function openVtuberDialog(v) {
     `<div class="field-edit ${hidden.has(f.id) ? "is-hidden" : ""}">` +
     `<label>${esc(f.label)}<textarea data-field="${esc(f.id)}" rows="1">${esc((v && v.values[f.id]) || "")}</textarea></label>` +
     (i ? hideBtn(f.id) : "") + `</div>`
-  ).join("") + `<p class="hint">改行すると別々にコピーできるチップになります。「#タグA #タグB」のように # 付きで並べても分かれます。</p>`;
+  ).join("") + `<p class="hint">改行すると別々にコピーできるチップになります。「#タグA #タグB」のように # 付きで並べても分かれます。</p>` +
+    // メモ (自由に書ける。チップにはならず、コピーもされない)
+    `<label>メモ<textarea id="memo-input" rows="3" data-min-rows="3" placeholder="推しについてのメモ (押してもコピーされません)">${esc((v && v.memo) || "")}</textarea></label>`;
   // カラー項目 (髪の色・目の色など)。1 つの項目に何色でも登録できる
   const colors = state.colorFields.map((f) => {
     const list = ((v && v.colors && v.colors[f.id]) || []).filter(isHex);
@@ -1127,7 +1154,7 @@ function openVtuberDialog(v) {
 
 // 入力欄の高さを行数に合わせる (改行した分だけ広がる)
 function fitTextarea(t) {
-  t.rows = Math.max(1, t.value.split("\n").length);
+  t.rows = Math.max(+t.dataset.minRows || 1, t.value.split("\n").length);
 }
 
 // 入力されたカラーコードを「#a1b2c3」の形にそろえる (「a1b2c3」「#abc」も OK)。ダメなら null
@@ -1195,6 +1222,8 @@ $("#dlg-vtuber").addEventListener("close", () => {
     if (x) dates[box.dataset.dateField] = x;
     else delete dates[box.dataset.dateField];
   });
+  // メモ (前後の空白・空行は取る)
+  const memo = $("#memo-input").value.trim();
   // この推しで非表示にする項目 (削除した項目の分は残しておく)
   const shown = new Set([...document.querySelectorAll("#vtuber-inputs .hide-toggle")].map((b) => b.dataset.hideId));
   const hidden = [
@@ -1211,11 +1240,11 @@ $("#dlg-vtuber").addEventListener("close", () => {
     .filter((l) => safeUrl(l.url));
 
   if (v) {
-    store.updateVtuber(v.id, { values, colors, birthday, dates, links, hidden }).then(reload).catch(fail);
+    store.updateVtuber(v.id, { values, memo, colors, birthday, dates, links, hidden }).then(reload).catch(fail);
   } else {
     const id = newId();
     // 書き込みはまず端末に反映されるので、すぐに選択できる
-    store.putVtuber({ id, values, colors, birthday, dates, links, hidden, folders: [DEFAULT_FOLDER], createdAt: Date.now() })
+    store.putVtuber({ id, values, memo, colors, birthday, dates, links, hidden, folders: [DEFAULT_FOLDER], createdAt: Date.now() })
       .then(loadVtubers)
       .then(() => select(id))
       .catch(fail);
@@ -1310,7 +1339,7 @@ $("#dlg-fields").addEventListener("close", () => {
 //  - 「画像も含めて」: .zip ファイル (別の端末へのお引っ越しにも使える)
 // ------------------------------------------------------------
 // Vtuber 1 人分のうち、バックアップに入れる項目
-const BACKUP_KEYS = ["values", "colors", "links", "birthday", "dates", "hidden", "favorite", "folders", "icon", "createdAt"];
+const BACKUP_KEYS = ["values", "memo", "colors", "links", "birthday", "dates", "hidden", "favorite", "folders", "icon", "createdAt"];
 
 // 文字の部分 (設定と Vtuber の情報) をまとめる
 function backupData() {
