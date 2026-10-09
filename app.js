@@ -1509,16 +1509,18 @@ $("#import-input").onchange = async (e) => {
     await store.saveSettings(settings);
 
     // 推しの登録内容 (名前など) は、文字のものだけにそろえる
+    const cleanIds = (list) => (Array.isArray(list) ? list.filter((s) => typeof s === "string") : []);
     const cleanValues = (values) => Object.fromEntries(
       Object.entries(values && typeof values === "object" && !Array.isArray(values) ? values : {}).filter(([, s]) => typeof s === "string"));
     // Vtuber (ID が正しいものだけ)
     const validId = (id) => typeof id === "string" && /^[A-Za-z0-9]{1,40}$/.test(id);
     for (const v of data.vtubers) {
-      if (!validId(v.id)) continue;
+      if (!v || typeof v !== "object" || !validId(v.id)) continue; // 壊れた行は飛ばす
       const now = (await store.getVtuber(v.id)) || { id: v.id, createdAt: Date.now() };
       const out = { ...now };
       BACKUP_KEYS.forEach((k) => v[k] !== undefined && (out[k] = v[k]));
-      out.values = cleanValues(out.values); // 名前などが無い・壊れているときも一覧が表示できるように
+      out.values = cleanValues(out.values);
+      for (const k of ["hidden", "countdown"]) if (v[k] !== undefined) out[k] = cleanIds(v[k]); // 名前などが無い・壊れているときも一覧が表示できるように
       await store.putVtuber(out);
     }
 
