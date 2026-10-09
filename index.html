@@ -91,6 +91,17 @@
     </form>
   </dialog>
 
+  <!-- アップデート後に 1 回だけ出す「お知らせ」 -->
+  <dialog id="dlg-news">
+    <form method="dialog">
+      <h2>🆕 お知らせ</h2>
+      <div id="news-body"></div>
+      <div class="dlg-buttons">
+        <button value="ok" class="primary" autofocus>わかりました</button>
+      </div>
+    </form>
+  </dialog>
+
   <!-- 登録項目の編集用ダイアログ -->
   <dialog id="dlg-fields">
     <form method="dialog">
@@ -161,6 +172,6 @@
   <!-- type="module" にすると import が使える -->
   <!-- zip の書き出し・読み込み用ライブラリ (JSZip, MIT ライセンス) -->
   <script src="lib/jszip.min.js"></script>
-  <script type="module" src="app.js?v=20261008-6"></script>
+  <script type="module" src="app.js?v=20261009-1"></script>
 </body>
 </html>

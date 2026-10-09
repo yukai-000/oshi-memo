@@ -73,6 +73,35 @@ function fail(e) {
   toast("エラー: " + (e.code || e.message));
 }
 
+// ===== お知らせ (アップデート後に 1 回だけ表示) =====
+// 新しいお知らせは、この一覧の「一番上」に足していく。
+// id は前のお知らせより大きい数字にすること (見たかどうかの判定に使う)。
+const NEWS = [
+  {
+    id: 1,
+    date: "2026/10/09",
+    items: [
+      "使い方マニュアルの最後に「保存する画像について」「データと通信について」「アプリの変更・公開終了について」の注意点を追加しました。",
+    ],
+  },
+];
+
+// 一番新しいお知らせの番号
+function latestNewsId() {
+  return Math.max(0, ...NEWS.map((n) => n.id));
+}
+
+// まだ見ていないお知らせがあれば表示して、「見た」ことを保存する
+function showNews(seenId) {
+  const unread = NEWS.filter((n) => n.id > seenId);
+  if (!unread.length) return;
+  $("#news-body").innerHTML = unread.map((n) =>
+    `<h3>${esc(n.date)}</h3><ul class="help-list">${n.items.map((t) => `<li>${esc(t)}</li>`).join("")}</ul>`
+  ).join("");
+  $("#dlg-news").showModal();
+  store.saveSettings({ newsSeen: latestNewsId() }).catch(fail);
+}
+
 // ------------------------------------------------------------
 // 起動・データの読み込み
 // ------------------------------------------------------------
@@ -97,9 +126,12 @@ async function start() {
     $("#detail").hidden = false;
     render();
     // 初めて開いたときは「はじめに・注意点」を表示
+    // (初めての人にはお知らせは出さず、今あるお知らせは「見た」ことにする)
     if (!settings.introSeen) {
       $("#dlg-help").showModal();
-      store.saveSettings({ introSeen: true }).catch(fail);
+      store.saveSettings({ introSeen: true, newsSeen: latestNewsId() }).catch(fail);
+    } else {
+      showNews(settings.newsSeen || 0);
     }
     // ブラウザに「このサイトのデータを勝手に消さないで」とお願いする
     state.persisted = await store.requestPersist().catch(() => false);
