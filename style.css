@@ -681,6 +681,17 @@ dialog h3 {
 .bday-edit { display: flex; gap: 8px; margin-top: 4px; align-items: center; }
 /* 年の入力欄 (空欄でも OK) */
 .bday-edit .date-y { width: 9.5em; min-width: 0; }
+/* 日付の項目の「1 か月前からカウントダウン」のチェック (編集画面) */
+dialog label.countdown-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0 0;
+  font-family: var(--body);
+  font-size: 13px;
+  color: var(--ink);
+}
+.countdown-check input { width: 18px; height: 18px; accent-color: #e0475b; }
 /* 日付の項目の「(5年5ヶ月)」 */
 .date-since { font-size: 13px; color: var(--muted); }
 /* お知らせの 2 つ目の見出し (今日は記念日) */
