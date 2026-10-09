@@ -70,7 +70,7 @@ const current = () => state.vtubers.find((v) => v.id === state.selectedId);
 // Vtuber の見出し (一番上の項目の値) を返す
 function titleOf(v) {
   const first = state.fields[0];
-  return (first && v.values[first.id]) || "(名前未設定)";
+  return (first && (v.values || {})[first.id]) || "(名前未設定)";
 }
 
 // エラーをまとめて表示する
@@ -1434,12 +1434,20 @@ $("#import-input").onchange = async (e) => {
 
     // 項目・テンプレート
     const settings = {};
-    if (Array.isArray(data.fields)) settings.fields = data.fields;
-    if (Array.isArray(data.colorFields)) settings.colorFields = data.colorFields;
-    if (Array.isArray(data.dateFields)) settings.dateFields = data.dateFields;
+    // 項目の一覧は、ID と項目名がどちらも文字になっている行だけ読み込む (壊れた行は捨てる)
+    const cleanFields = (list) => Array.isArray(list)
+      ? list.filter((f) => f && typeof f.id === "string" && f.id && typeof f.label === "string").map((f) => ({ id: f.id, label: f.label }))
+      : null;
+    const fields = cleanFields(data.fields), colorFields = cleanFields(data.colorFields), dateFields = cleanFields(data.dateFields);
+    if (fields && fields.length) settings.fields = fields; // 文字の項目は 1 つ以上必要
+    if (colorFields) settings.colorFields = colorFields;
+    if (dateFields) settings.dateFields = dateFields;
     if (typeof data.postTemplate === "string") settings.postTemplate = data.postTemplate;
     await store.saveSettings(settings);
 
+    // 推しの登録内容 (名前など) は、文字のものだけにそろえる
+    const cleanValues = (values) => Object.fromEntries(
+      Object.entries(values && typeof values === "object" && !Array.isArray(values) ? values : {}).filter(([, s]) => typeof s === "string"));
     // Vtuber (ID が正しいものだけ)
     const validId = (id) => typeof id === "string" && /^[A-Za-z0-9]{1,40}$/.test(id);
     for (const v of data.vtubers) {
@@ -1447,6 +1455,7 @@ $("#import-input").onchange = async (e) => {
       const now = (await store.getVtuber(v.id)) || { id: v.id, createdAt: Date.now() };
       const out = { ...now };
       BACKUP_KEYS.forEach((k) => v[k] !== undefined && (out[k] = v[k]));
+      out.values = cleanValues(out.values); // 名前などが無い・壊れているときも一覧が表示できるように
       await store.putVtuber(out);
     }
 
