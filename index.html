@@ -20,7 +20,7 @@
   <script src="theme.js?v=20261009-2"></script>
   <!-- ?v=… は「バージョン番号」。アプリを更新したら数字を変えると、
        スマホなどに残っている古いファイルではなく、新しいファイルが必ず読み込まれる -->
-  <link rel="stylesheet" href="style.css?v=20261009-2">
+  <link rel="stylesheet" href="style.css?v=20261009-3">
 </head>
 <body>
   <!-- 読み込み中の表示 -->
@@ -115,6 +115,10 @@
       <p class="hint">髪の色・目の色など。1 つの項目に何色でも登録できます。</p>
       <ul id="color-field-rows"></ul>
       <button type="button" id="btn-add-color-field">＋ 色の項目を追加</button>
+      <h3>日付の項目</h3>
+      <p class="hint">デビュー日・推し始めた日など。年は入れなくても登録できます。記念日の当日は画面の上にお知らせが出ます。</p>
+      <ul id="date-field-rows"></ul>
+      <button type="button" id="btn-add-date-field">＋ 日付の項目を追加</button>
       <h3>投稿テンプレート</h3>
       <p class="hint">「𝕏 で投稿」を押したときの文章です。<b>{項目名}</b> の部分にその人の登録内容が入ります。<br>
         例: {名前}さんのファンアートを描きました！ {ファンアートタグ}</p>
@@ -172,6 +176,6 @@
   <!-- type="module" にすると import が使える -->
   <!-- zip の書き出し・読み込み用ライブラリ (JSZip, MIT ライセンス) -->
   <script src="lib/jszip.min.js"></script>
-  <script type="module" src="app.js?v=20261009-1"></script>
+  <script type="module" src="app.js?v=20261009-3"></script>
 </body>
 </html>

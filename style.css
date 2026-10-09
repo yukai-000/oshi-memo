@@ -404,9 +404,9 @@ dialog label { display: block; margin-bottom: 14px; font-family: var(--hand); fo
 dialog label textarea { color: var(--ink); font-family: var(--body); }
 .dlg-buttons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
 .hint { color: var(--muted); font-size: 12px; }
-#field-rows, #color-field-rows { list-style: none; padding: 0; margin: 0 0 12px; }
-#field-rows li, #color-field-rows li { display: flex; gap: 4px; margin-bottom: 6px; align-items: center; }
-#field-rows li button, #color-field-rows li button { padding: 2px 9px; }
+#field-rows, #color-field-rows, #date-field-rows { list-style: none; padding: 0; margin: 0 0 12px; }
+#field-rows li, #color-field-rows li, #date-field-rows li { display: flex; gap: 4px; margin-bottom: 6px; align-items: center; }
+#field-rows li button, #color-field-rows li button, #date-field-rows li button { padding: 2px 9px; }
 
 /* ---------- ログイン画面 ---------- */
 .login, .loading {
@@ -634,7 +634,15 @@ dialog h3 {
 }
 .bday-left.today { color: var(--danger); }
 .bday-text { font-family: var(--hand); font-weight: 600; margin-right: 8px; }
-.bday-edit { display: flex; gap: 8px; margin-top: 4px; }
+.bday-edit { display: flex; gap: 8px; margin-top: 4px; align-items: center; }
+/* 年の入力欄 (空欄でも OK) */
+.bday-edit .date-y { width: 9.5em; min-width: 0; }
+/* 日付の項目の「(5年5ヶ月)」 */
+.date-since { font-size: 13px; color: var(--muted); }
+/* お知らせの 2 つ目の見出し (今日は記念日) */
+.bday-banner h3.banner-sub { margin-top: 10px; }
+/* お知らせ (黄色い付箋) の「今日！」は、夜のノートでも読みやすい濃い赤にする */
+.bday-banner .bday-left.today { color: #b9544a; }
 
 /* ---------- リンク ---------- */
 .link-chip {

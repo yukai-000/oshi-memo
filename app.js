@@ -12,6 +12,10 @@ const DEFAULT_COLOR_FIELDS = [
   { id: "hair", label: "髪の色" },
   { id: "eye", label: "目の色" },
 ];
+// 初回の日付の項目 (デビュー日など。これも自由に追加・削除・編集できる)
+const DEFAULT_DATE_FIELDS = [
+  { id: "debut", label: "デビュー日" },
+];
 // 初回ログイン時の登録項目 (あとから画面で自由に追加・削除・編集できる)
 const DEFAULT_FIELDS = [
   { id: "name", label: "名前" },
@@ -39,6 +43,7 @@ const state = {
   persisted: false,  // ブラウザに「消さないで」とお願いできたか
   fields: [],        // 登録項目 [{id, label}]
   colorFields: [],   // 色の項目 [{id, label}] (髪の色・目の色など)
+  dateFields: [],    // 日付の項目 [{id, label}] (デビュー日・推し始めた日など)
   postTemplate: DEFAULT_POST_TEMPLATE, // X に投稿するときの文章の型
   vtubers: [],       // Vtuber の一覧 [{id, values, folders}]
   images: [],        // 選択中の Vtuber の画像の一覧 [{id, folder, name, thumb, ...}]
@@ -78,6 +83,14 @@ function fail(e) {
 // id は前のお知らせより大きい数字にすること (見たかどうかの判定に使う)。
 const NEWS = [
   {
+    id: 2,
+    date: "2026/10/09",
+    items: [
+      "「デビュー日」などの日付の項目を追加しました。「⚙ 項目・設定」の「日付の項目」で、推し始めた日なども自由に追加できます。記念日の当日は画面の上にお知らせが出ます。",
+      "誕生日に「年」も入れられるようになりました (入れなくても大丈夫です)。",
+    ],
+  },
+  {
     id: 1,
     date: "2026/10/09",
     items: [
@@ -110,7 +123,7 @@ async function start() {
     // 設定 (初めて開いたときは初期の項目を作る)
     let settings = await store.getSettings();
     if (!settings) {
-      settings = { fields: DEFAULT_FIELDS, colorFields: DEFAULT_COLOR_FIELDS, postTemplate: DEFAULT_POST_TEMPLATE, lastBackupAt: 0 };
+      settings = { fields: DEFAULT_FIELDS, colorFields: DEFAULT_COLOR_FIELDS, dateFields: DEFAULT_DATE_FIELDS, postTemplate: DEFAULT_POST_TEMPLATE, lastBackupAt: 0 };
       await store.saveSettings(settings);
     }
     // 以前の初期項目のまま (自分で項目を変えていない) なら、新しい初期項目に入れ替える
@@ -144,6 +157,7 @@ async function start() {
 function applySettings(settings) {
   state.fields = settings.fields || DEFAULT_FIELDS;
   state.colorFields = settings.colorFields || DEFAULT_COLOR_FIELDS;
+  state.dateFields = settings.dateFields || DEFAULT_DATE_FIELDS;
   state.postTemplate = settings.postTemplate ?? DEFAULT_POST_TEMPLATE;
   state.lastBackupAt = settings.lastBackupAt || 0;
 }
@@ -235,7 +249,9 @@ function esc(s) {
 // 誕生日
 // ------------------------------------------------------------
 // 誕生日が登録されているか ({m: 月, d: 日})
-const hasBirthday = (v) => !!v.birthday && v.birthday.m >= 1 && v.birthday.m <= 12 && v.birthday.d >= 1 && v.birthday.d <= 31;
+// 日付 {y?, m, d} が正しく入っているか (年は無くても OK)
+const isDate = (x) => !!x && x.m >= 1 && x.m <= 12 && x.d >= 1 && x.d <= 31 && (x.y == null || (x.y >= 1 && x.y <= 9999));
+const hasBirthday = (v) => isDate(v.birthday);
 
 // 指定した年・月の日付を作る (その月に無い日は月末にする。例: うるう年以外の 2/29 → 2/28)
 function dateIn(year, month, day) {
@@ -243,41 +259,94 @@ function dateIn(year, month, day) {
   return new Date(year, month - 1, Math.min(day, last));
 }
 
+// 今日の日付 (時刻は 0 時にそろえる)
+function todayDate() {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+}
+
+// 「2021年5月3日」「10月21日」(年が無いとき) の表示
+const dateLabel = (x) => (x.y ? `${x.y}年` : "") + `${x.m}月${x.d}日`;
+
 // 次の誕生日まであと何日か、カウントダウン中 (1 か月前から当日まで) か
 function birthdayInfo(v) {
   if (!hasBirthday(v)) return null;
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const today = todayDate();
   const { m, d } = v.birthday;
   let next = dateIn(today.getFullYear(), m, d);
   if (next < today) next = dateIn(today.getFullYear() + 1, m, d);
   const days = Math.round((next - today) / 86400000);
   // 1 か月前の日 (例: 3/14 生まれ → 2/14 からカウント開始)
   const start = m === 1 ? dateIn(next.getFullYear() - 1, 12, d) : dateIn(next.getFullYear(), m - 1, d);
-  return { days, counting: today >= start, label: `${m}月${d}日` };
+  return { days, counting: today >= start, label: dateLabel(v.birthday) };
 }
+
+// 日付の項目 (デビュー日など) の情報
+//  - isToday: 今日が記念日か
+//  - years:   今日で何周年か (年が入っているときだけ)
+//  - since:   その日からの経過 (例: 「5年5ヶ月」。年が入っていて、その日を過ぎているときだけ)
+function dateInfo(x) {
+  if (!isDate(x)) return null;
+  const today = todayDate();
+  // (年が未来の日付は、まだ記念日ではないので「今日」にしない)
+  const isToday = dateIn(today.getFullYear(), x.m, x.d).getTime() === today.getTime() && !(x.y > today.getFullYear());
+  let years = null, since = null;
+  if (x.y) {
+    // 経過した月数 (日にちがまだ来ていない月は数えない)
+    const months = (today.getFullYear() - x.y) * 12 + (today.getMonth() + 1 - x.m) - (today.getDate() < x.d && !isToday ? 1 : 0);
+    if (months >= 0) {
+      const y = Math.floor(months / 12), mo = months % 12;
+      since = y && mo ? `${y}年${mo}ヶ月` : y ? `${y}年` : mo ? `${mo}ヶ月` : "1ヶ月未満";
+    }
+    if (isToday) years = today.getFullYear() - x.y;
+  }
+  return { isToday, years, since, label: dateLabel(x) };
+}
+
+// 当日の表示 (例: 「🎉 今日で2周年！」。年が無い・その年の当日なら「🎉 今日！」)
+const annivText = (info) => (info.years > 0 ? `🎉 今日で${info.years}周年！` : "🎉 今日！");
+
+// 今日が記念日の項目の一覧 [{field, info}]
+const todaysAnniversaries = (v) =>
+  state.dateFields
+    .map((f) => ({ field: f, info: dateInfo((v.dates || {})[f.id]) }))
+    .filter((x) => x.info && x.info.isToday);
 
 // 「あと○日」「今日！」の表示
 const daysLeftText = (days) => (days === 0 ? "🎉 今日！" : `あと ${days} 日`);
 
 // 画面の一番上に出す「もうすぐ誕生日」のお知らせ
 function birthdayBannerHtml() {
-  const list = state.vtubers
+  // もうすぐ誕生日の人
+  const bdays = state.vtubers
     .map((v) => ({ v, info: birthdayInfo(v) }))
     .filter((x) => x.info && x.info.counting)
     .sort((a, b) => a.info.days - b.info.days);
-  if (!list.length) return "";
+  // 今日が記念日 (デビュー日など) の人
+  const annivs = state.vtubers.flatMap((v) => todaysAnniversaries(v).map((x) => ({ v, ...x })));
+  if (!bdays.length && !annivs.length) return "";
   return `
     <section class="bday-banner">
+      ${bdays.length ? `
       <h3>🎂 もうすぐ誕生日</h3>
-      <ul>${list.map(({ v, info }) => `
+      <ul>${bdays.map(({ v, info }) => `
         <li><button class="bday-item" data-select="${v.id}">
           ${avatarHtml(v, "avatar small")}
           <span class="bday-name">${esc(titleOf(v))}</span>
           <span class="bday-date">${info.label}</span>
           <span class="bday-left ${info.days === 0 ? "today" : ""}">${daysLeftText(info.days)}</span>
         </button></li>`).join("")}
-      </ul>
+      </ul>` : ""}
+      ${annivs.length ? `
+      <h3 class="${bdays.length ? "banner-sub" : ""}">🎉 今日は記念日</h3>
+      <ul>${annivs.map(({ v, field, info }) => `
+        <li><button class="bday-item" data-select="${v.id}">
+          ${avatarHtml(v, "avatar small")}
+          <span class="bday-name">${esc(titleOf(v))}</span>
+          <span class="bday-date">${esc(field.label)}</span>
+          <span class="bday-left today">${info.years > 0 ? `${info.years}周年` : "今日！"}</span>
+        </button></li>`).join("")}
+      </ul>` : ""}
     </section>`;
 }
 
@@ -333,8 +402,8 @@ function renderList() {
       `<span class="name">${esc(titleOf(v))}</span>` +
       (sub && v.values[sub.id] ? `<small>${esc(v.values[sub.id])}</small>` : "") +
       `</div>` +
-      // 右端の印: 誕生日のカウントダウン中なら 🎂、お気に入りなら ★
-      `<span class="li-marks">${birthdayInfo(v)?.counting ? "🎂" : ""}${v.favorite ? '<span class="fav-mark">★</span>' : ""}</span>`;
+      // 右端の印: 今日が記念日なら 🎉、誕生日のカウントダウン中なら 🎂、お気に入りなら ★
+      `<span class="li-marks">${todaysAnniversaries(v).length ? "🎉" : ""}${birthdayInfo(v)?.counting ? "🎂" : ""}${v.favorite ? '<span class="fav-mark">★</span>' : ""}</span>`;
     if (v.id === state.selectedId) li.classList.add("active");
     li.onclick = () => { select(v.id); closeDrawer(); };
     ul.appendChild(li);
@@ -412,6 +481,16 @@ function renderDetail() {
       (bday.counting ? `<span class="bday-left ${bday.days === 0 ? "today" : ""}">${daysLeftText(bday.days)}</span>` : "")
     : `<span class="none">未登録</span>`}</dd>`;
 
+  // 日付の項目の行 (経過した年月を表示。記念日の当日だけ「今日で○周年！」)
+  const dateRows = state.dateFields.map((f) => {
+    const info = dateInfo((v.dates || {})[f.id]);
+    return `<dt>${esc(f.label)}</dt><dd>${info
+      ? `<span class="bday-text">${info.label}</span>` +
+        (info.isToday ? `<span class="bday-left today">${annivText(info)}</span>`
+          : info.since ? `<span class="date-since">(${info.since})</span>` : "")
+      : `<span class="none">未登録</span>`}</dd>`;
+  }).join("");
+
   // リンクの行 (押すと新しいタブで開く)
   const links = (v.links || []).filter((l) => safeUrl(l.url));
   const linkRow = `<dt>リンク</dt><dd>${links.length
@@ -459,7 +538,7 @@ function renderDetail() {
         ${hasIcon(v) ? `<button id="btn-icon-remove" class="ghost">アイコンを外す</button>` : ""}
         <input id="icon-input" type="file" accept="image/*" hidden>
       </div>
-      <dl class="fields">${rows}${colorRows}${bdayRow}${linkRow}</dl>
+      <dl class="fields">${rows}${colorRows}${bdayRow}${dateRows}${linkRow}</dl>
     </section>
     <section class="card">
       <div class="card-head"><h2>参考画像</h2><button id="btn-add-folder">＋ フォルダ</button></div>
@@ -998,16 +1077,18 @@ function openVtuberDialog(v) {
         <button type="button" class="add-color">＋ 色を追加</button>
       </div>`;
   }).join("");
-  // 誕生日 (月と日を選ぶ)
-  const b = v && hasBirthday(v) ? v.birthday : {};
-  const birthday = `
-    <div class="color-edit">
-      <span class="color-label">誕生日</span>
+  // 誕生日と日付の項目 (年は入れなくても OK、月と日を選ぶ)
+  const dateEdit = (label, x, attr) => `
+    <div class="color-edit" ${attr}>
+      <span class="color-label">${esc(label)}</span>
       <div class="bday-edit">
-        <select id="bday-m">${options(12, b.m, "月")}</select>
-        <select id="bday-d">${options(31, b.d, "日")}</select>
+        <input type="text" class="date-y" inputmode="numeric" maxlength="4" placeholder="年 (なくてもOK)" value="${isDate(x) && x.y ? x.y : ""}">
+        <select class="date-m">${options(12, isDate(x) ? x.m : 0, "月")}</select>
+        <select class="date-d">${options(31, isDate(x) ? x.d : 0, "日")}</select>
       </div>
     </div>`;
+  const birthday = dateEdit("誕生日", v && v.birthday, 'id="bday-edit"');
+  const dates = state.dateFields.map((f) => dateEdit(f.label, v && v.dates && v.dates[f.id], `data-date-field="${esc(f.id)}"`)).join("");
   // リンク (いくつでも登録できる)
   const links = `
     <div class="color-edit">
@@ -1015,7 +1096,7 @@ function openVtuberDialog(v) {
       <div class="link-list">${((v && v.links) || []).map(linkRowHtml).join("")}</div>
       <button type="button" class="add-link">＋ リンクを追加</button>
     </div>`;
-  $("#vtuber-inputs").innerHTML = texts + colors + birthday + links;
+  $("#vtuber-inputs").innerHTML = texts + colors + birthday + dates + links;
   document.querySelectorAll("#vtuber-inputs textarea").forEach(fitTextarea);
   $("#dlg-vtuber").returnValue = "";
   $("#dlg-vtuber").showModal();
@@ -1068,9 +1149,20 @@ $("#dlg-vtuber").addEventListener("close", () => {
       .map((t) => normalizeHex(t.value))
       .filter(Boolean);
   });
-  // 誕生日 (月と日が両方選ばれているときだけ保存)
-  const m = +$("#bday-m").value, d = +$("#bday-d").value;
-  const birthday = m && d ? { m, d } : null;
+  // 日付の入力欄 1 つ分を読む (月と日が両方選ばれているときだけ。年は 4 桁の数字のときだけ)
+  const readDate = (box) => {
+    const m = +box.querySelector(".date-m").value, d = +box.querySelector(".date-d").value;
+    const y = box.querySelector(".date-y").value.trim().replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0));
+    if (!m || !d) return null;
+    return /^\d{4}$/.test(y) && +y >= 1 ? { y: +y, m, d } : { m, d };
+  };
+  const birthday = readDate($("#bday-edit"));
+  const dates = { ...((v && v.dates) || {}) }; // 削除した項目の値は消さずに残しておく
+  document.querySelectorAll("#vtuber-inputs [data-date-field]").forEach((box) => {
+    const x = readDate(box);
+    if (x) dates[box.dataset.dateField] = x;
+    else delete dates[box.dataset.dateField];
+  });
   // リンク (URL が正しいものだけ保存。「https://」を付け忘れても補う)
   const links = [...document.querySelectorAll("#vtuber-inputs .link-row")]
     .map((r) => {
@@ -1081,11 +1173,11 @@ $("#dlg-vtuber").addEventListener("close", () => {
     .filter((l) => safeUrl(l.url));
 
   if (v) {
-    store.updateVtuber(v.id, { values, colors, birthday, links }).then(reload).catch(fail);
+    store.updateVtuber(v.id, { values, colors, birthday, dates, links }).then(reload).catch(fail);
   } else {
     const id = newId();
     // 書き込みはまず端末に反映されるので、すぐに選択できる
-    store.putVtuber({ id, values, colors, birthday, links, folders: [DEFAULT_FOLDER], createdAt: Date.now() })
+    store.putVtuber({ id, values, colors, birthday, dates, links, folders: [DEFAULT_FOLDER], createdAt: Date.now() })
       .then(loadVtubers)
       .then(() => select(id))
       .catch(fail);
@@ -1098,9 +1190,9 @@ $("#btn-add-vtuber").onclick = () => { closeDrawer(); openVtuberDialog(null); };
 // 登録項目の編集ダイアログ (テキスト項目とカラー項目の 2 種類)
 // ------------------------------------------------------------
 // ダイアログ内で編集中の項目 (保存を押すまで反映しない)
-const drafts = { fields: [], colorFields: [] };
+const drafts = { fields: [], colorFields: [], dateFields: [] };
 // どの一覧をどの <ul> に表示するか
-const ROW_LISTS = { fields: "#field-rows", colorFields: "#color-field-rows" };
+const ROW_LISTS = { fields: "#field-rows", colorFields: "#color-field-rows", dateFields: "#date-field-rows" };
 
 function renderRows(key) {
   const list = drafts[key];
@@ -1146,6 +1238,8 @@ $("#btn-fields").onclick = () => {
   drafts.colorFields = state.colorFields.map((f) => ({ ...f }));
   renderRows("fields");
   renderRows("colorFields");
+  drafts.dateFields = state.dateFields.map((f) => ({ ...f }));
+  renderRows("dateFields");
   $("#post-template").value = state.postTemplate;
   renderStorageInfo();
   $("#dlg-fields").returnValue = "";
@@ -1154,6 +1248,7 @@ $("#btn-fields").onclick = () => {
 
 $("#btn-add-field").onclick = () => addRow("fields");
 $("#btn-add-color-field").onclick = () => addRow("colorFields");
+$("#btn-add-date-field").onclick = () => addRow("dateFields");
 
 $("#dlg-fields").addEventListener("close", () => {
   if ($("#dlg-fields").returnValue !== "ok") return;
@@ -1165,6 +1260,7 @@ $("#dlg-fields").addEventListener("close", () => {
   store.saveSettings({
     fields,
     colorFields: clean(drafts.colorFields),
+    dateFields: clean(drafts.dateFields),
     postTemplate: $("#post-template").value.trim(),
   }).then(reload).catch(fail);
   toast("設定を保存しました");
@@ -1176,7 +1272,7 @@ $("#dlg-fields").addEventListener("close", () => {
 //  - 「画像も含めて」: .zip ファイル (別の端末へのお引っ越しにも使える)
 // ------------------------------------------------------------
 // Vtuber 1 人分のうち、バックアップに入れる項目
-const BACKUP_KEYS = ["values", "colors", "links", "birthday", "favorite", "folders", "icon", "createdAt"];
+const BACKUP_KEYS = ["values", "colors", "links", "birthday", "dates", "favorite", "folders", "icon", "createdAt"];
 
 // 文字の部分 (設定と Vtuber の情報) をまとめる
 function backupData() {
@@ -1186,6 +1282,7 @@ function backupData() {
     exportedAt: new Date().toISOString(),
     fields: state.fields,
     colorFields: state.colorFields,
+    dateFields: state.dateFields,
     postTemplate: state.postTemplate,
     vtubers: state.vtubers.map((v) => {
       const out = { id: v.id };
@@ -1265,6 +1362,7 @@ $("#import-input").onchange = async (e) => {
     const settings = {};
     if (Array.isArray(data.fields)) settings.fields = data.fields;
     if (Array.isArray(data.colorFields)) settings.colorFields = data.colorFields;
+    if (Array.isArray(data.dateFields)) settings.dateFields = data.dateFields;
     if (typeof data.postTemplate === "string") settings.postTemplate = data.postTemplate;
     await store.saveSettings(settings);
 
