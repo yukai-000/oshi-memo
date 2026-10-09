@@ -45,6 +45,7 @@
     --photo: #3a3631;
     --shadow: rgba(0, 0, 0, 0.35);
     --danger: #e08a7f;
+    color-scheme: dark; /* ブラウザの部品 (選択肢の一覧など) も暗い色にする */
   }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -61,6 +62,7 @@
       --photo: #3a3631;
       --shadow: rgba(0, 0, 0, 0.35);
       --danger: #e08a7f;
+      color-scheme: dark;
   }
 }
 
@@ -659,6 +661,8 @@ select {
   border-bottom: 1.5px solid var(--line);
   padding: 4px 2px;
 }
+/* 開いたときの選択肢の一覧 (夜のノートで白い背景に白い文字にならないように) */
+select option { background: var(--sheet); color: var(--ink); }
 
 /* ---------- ポラロイドのひとことメモ ---------- */
 .thumb .memo {
@@ -820,7 +824,17 @@ a.button { color: var(--ink); text-decoration: none; display: inline-block; }
 .manual td:nth-child(2) { min-width: 7em; }
 
 /* ☀ / 🌙 の切り替えボタン */
-#btn-theme { font-size: 17px; line-height: 1; padding: 4px 8px; }
+#btn-theme { font-size: 17px; line-height: 1; padding: 4px 8px; white-space: nowrap; }
+/* 「ダークモード」「ライトモード」の文字は、ほかのボタンと同じ大きさにする */
+#btn-theme .theme-label { font-size: 14px; margin-left: 4px; vertical-align: 2px; }
+/* 上のバーのボタンは折り返さない。入りきらないときはタイトルのほうを「…」で省略する */
+.topbar button, .topbar a.button { white-space: nowrap; flex-shrink: 0; }
+.topbar h1 { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* とても狭い画面 (幅 360px 以下) では文字を省いて絵だけにする */
+@media (max-width: 360px) {
+  #btn-theme .theme-label { display: none; }
+  #btn-theme { padding: 4px 4px; } /* 🌙 は ☀ より少し幅があるので、はみ出さないように */
+}
 .manual-page .topbar-right { margin-left: auto; }
 
 /* ---------- 作者の表示 (画面の一番下) ---------- */
