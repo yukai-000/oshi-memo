@@ -927,3 +927,6 @@ a.button { color: var(--ink); text-decoration: none; display: inline-block; }
 /* 元に戻せない操作のボタン (赤) */
 button.danger-fill { background: var(--danger); border-color: var(--danger); color: #fff; }
 button.danger-fill:hover { background: var(--danger); opacity: .88; }
+
+/* ---------- アンケートへのリンク (項目・設定の一番下 / マニュアル) ---------- */
+a.survey-link { margin-top: 4px; }
