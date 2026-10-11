@@ -357,7 +357,9 @@ function birthdayInfo(v) {
   const days = Math.round((next - today) / 86400000);
   // 1 か月前の日 (例: 3/14 生まれ → 2/14 からカウント開始)
   const start = m === 1 ? dateIn(next.getFullYear() - 1, 12, d) : dateIn(next.getFullYear(), m - 1, d);
-  return { days, counting: today >= start, label: dateLabel(v.birthday) };
+  // カウントダウンを OFF にした推しは、当日だけお知らせ・🎂・「今日！」を出す
+  const counting = v.birthdayCountdown === false ? days === 0 : today >= start;
+  return { days, counting, label: dateLabel(v.birthday) };
 }
 
 // 日付の項目 (デビュー日など) の情報
@@ -1261,7 +1263,9 @@ function openVtuberDialog(v) {
       </div>
       ${hideId ? `<label class="countdown-check"><input type="checkbox" class="date-cd" data-cd-id="${esc(hideId)}" ${v && countdownOf(v).has(hideId) ? "checked" : ""}> 1 か月前からカウントダウン</label>` : ""}
     </div>`;
-  const birthday = dateEdit("誕生日", v && v.birthday, 'id="bday-edit"');
+  const birthday = dateEdit("誕生日", v && v.birthday, 'id="bday-edit"').replace(/<\/div>\s*$/,
+    `<label class="countdown-check"><input type="checkbox" id="bday-cd" ${v && v.birthdayCountdown === false ? "" : "checked"}> 1 か月前からカウントダウン</label>
+    </div>`);
   const dates = state.dateFields.map((f) => dateEdit(f.label, v && v.dates && v.dates[f.id], `data-date-field="${esc(f.id)}"`, f.id)).join("");
   // リンク (いくつでも登録できる)
   const links = `
@@ -1342,6 +1346,7 @@ $("#dlg-vtuber").addEventListener("close", () => {
     return /^\d{4}$/.test(y) && +y >= 1 ? { y: +y, m, d } : { m, d };
   };
   const birthday = readDate($("#bday-edit"));
+  const birthdayCountdown = $("#bday-cd").checked; // 誕生日のカウントダウン (OFF でも当日は出す)
   const dates = { ...((v && v.dates) || {}) }; // 削除した項目の値は消さずに残しておく
   document.querySelectorAll("#vtuber-inputs [data-date-field]").forEach((box) => {
     const x = readDate(box);
@@ -1373,11 +1378,11 @@ $("#dlg-vtuber").addEventListener("close", () => {
     .filter((l) => safeUrl(l.url));
 
   if (v) {
-    store.updateVtuber(v.id, { values, memo, colors, birthday, dates, countdown, links, hidden }).then(reload).catch(fail);
+    store.updateVtuber(v.id, { values, memo, colors, birthday, birthdayCountdown, dates, countdown, links, hidden }).then(reload).catch(fail);
   } else {
     const id = newId();
     // 書き込みはまず端末に反映されるので、すぐに選択できる
-    store.putVtuber({ id, values, memo, colors, birthday, dates, countdown, links, hidden, folders: [DEFAULT_FOLDER], createdAt: Date.now() })
+    store.putVtuber({ id, values, memo, colors, birthday, birthdayCountdown, dates, countdown, links, hidden, folders: [DEFAULT_FOLDER], createdAt: Date.now() })
       .then(loadVtubers)
       .then(() => select(id))
       .catch(fail);
@@ -1477,7 +1482,7 @@ $("#dlg-fields").addEventListener("close", () => {
 //  - 「画像も含めて」: .zip ファイル (別の端末へのお引っ越しにも使える)
 // ------------------------------------------------------------
 // Vtuber 1 人分のうち、バックアップに入れる項目
-const BACKUP_KEYS = ["values", "memo", "colors", "links", "birthday", "dates", "countdown", "hidden", "favorite", "folders", "icon", "createdAt"];
+const BACKUP_KEYS = ["values", "memo", "colors", "links", "birthday", "birthdayCountdown", "dates", "countdown", "hidden", "favorite", "folders", "icon", "createdAt"];
 
 // 文字の部分 (設定と Vtuber の情報) をまとめる
 function backupData() {
@@ -1593,7 +1598,8 @@ $("#import-input").onchange = async (e) => {
       const out = { ...now };
       BACKUP_KEYS.forEach((k) => v[k] !== undefined && (out[k] = v[k]));
       out.values = cleanValues(out.values);
-      for (const k of ["hidden", "countdown"]) if (v[k] !== undefined) out[k] = cleanIds(v[k]); // 名前などが無い・壊れているときも一覧が表示できるように
+      for (const k of ["hidden", "countdown"]) if (v[k] !== undefined) out[k] = cleanIds(v[k]);
+      if (v.birthdayCountdown !== undefined && typeof v.birthdayCountdown !== "boolean") delete out.birthdayCountdown; // 名前などが無い・壊れているときも一覧が表示できるように
       await store.putVtuber(out);
     }
 
