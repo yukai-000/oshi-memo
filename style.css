@@ -948,3 +948,6 @@ a.survey-link { margin-top: 4px; }
 /* ---------- フォルダの左右入れ替え ---------- */
 .folder-move { display: inline-flex; gap: 4px; margin-left: auto; }
 .folder-move button:disabled { opacity: .35; cursor: default; transform: none; }
+
+/* 推しの追加・編集を開いたときは見出しを選んだ状態にする (枠線は出さない) */
+#dlg-vtuber-title:focus, #dlg-fields-title:focus { outline: none; }
