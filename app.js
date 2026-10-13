@@ -647,13 +647,16 @@ function renderDetail() {
       `<div class="oshi-memo-text" ${memoOpen ? "" : "hidden"}>${esc(memo)}</div>`
     : `<span class="none">未登録</span>`}</dd>`;
 
-  // 色の行 (色見本を押すとカラーコードをコピー)
+  // 色の行 (色見本・カラーコードを押すとカラーコード、RGB を押すと「43, 58, 103」の形でコピー)
   const colorRows = state.colorFields.filter((f) => !hidden.has(f.id)).map((f) => {
     const list = ((v.colors || {})[f.id] || []).filter(isHex);
     const swatches = list.length
       ? list.map((hex) =>
-          `<button class="swatch" data-copy="${hex}" title="押すとカラーコードをコピー">` +
-          `<span class="swatch-color" style="background:${hex}"></span><span class="swatch-hex">${hex.toUpperCase()}</span></button>`
+          `<div class="swatch">` +
+          `<button type="button" class="swatch-main" data-copy="${hex}" title="押すとカラーコードをコピー">` +
+          `<span class="swatch-color" style="background:${hex}"></span><span class="swatch-hex">${hex.toUpperCase()}</span></button>` +
+          `<button type="button" class="swatch-rgb" data-copy="${hexToRgb(hex)}" title="押すと RGB をコピー">RGB ${hexToRgb(hex)}</button>` +
+          `</div>`
         ).join("")
       : `<span class="none">未登録</span>`;
     return `<dt>${esc(f.label)}</dt><dd class="swatches">${swatches}</dd>`;
@@ -1287,6 +1290,7 @@ const colorRowHtml = (hex) => `
   <div class="color-row">
     <input type="color" value="${hex}">
     <input type="text" class="hex" value="${hex}" maxlength="7" spellcheck="false">
+    <span class="rgb">RGB ${hexToRgb(hex)}</span>
     <button type="button" class="rm" title="この色を削除">✕</button>
   </div>`;
 
@@ -1372,6 +1376,11 @@ function normalizeHex(s) {
   return /^[0-9a-f]{6}$/.test(t) ? "#" + t : null;
 }
 
+// 「#2b3a67」→「43, 58, 103」(RGB の数字をカンマ区切りにする)
+function hexToRgb(hex) {
+  return [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(", ");
+}
+
 // カラー入力欄の操作 (中身が作り直されても動くよう、親要素でまとめて受け取る)
 $("#vtuber-inputs").addEventListener("click", (e) => {
   // 「非表示」⇔「表示する」の切り替え (保存を押すまで反映しない)
@@ -1402,6 +1411,8 @@ $("#vtuber-inputs").addEventListener("input", (e) => {
     const hex = normalizeHex(text.value);                  // コード → ピッカー
     if (hex) picker.value = hex;
   }
+  // RGB の表示も合わせる (ピッカーの色は常に正しい形なので、そこから計算)
+  row.querySelector(".rgb").textContent = "RGB " + hexToRgb(picker.value);
 });
 
 $("#dlg-vtuber").addEventListener("close", () => {
