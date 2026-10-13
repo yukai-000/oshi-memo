@@ -933,11 +933,15 @@ a.survey-link { margin-top: 4px; }
 
 /* ---------- 投稿テンプレート (複数) ---------- */
 /* 項目・設定のテンプレート 1 つ分 (名前 + ↑↓✕ + 文章) */
-.tpl-row { margin: 0 0 14px; }
+/* テンプレート 1 つ分を点線の枠で囲んで、どこからどこまでが 1 つか分かるようにする */
+.tpl-row { margin: 0 0 12px; padding: 10px 12px 12px; border: 1px dashed var(--line); border-radius: 6px; }
+/* 「名前」「投稿内容」の見出し */
+dialog label.tpl-label { display: inline-block; margin: 0 6px 0 0; font-size: 13px; color: var(--muted); flex-shrink: 0; }
+dialog label.tpl-label-text { display: block; margin: 10px 0 0; }
 .tpl-head { display: flex; gap: 4px; align-items: center; }
 .tpl-head .tpl-name { flex: 1; min-width: 0; font-family: var(--hand); font-size: 15px; }
 .tpl-head button { padding: 2px 9px; }
-.tpl-row .tpl-text { width: 100%; margin-top: 6px; }
+.tpl-row .tpl-text { width: 100%; margin-top: 2px; }
 /* 「𝕏 で投稿」で選ぶ画面 */
 #dlg-tpl { width: min(440px, 92vw); }
 #dlg-tpl h2 { font-size: 19px; }

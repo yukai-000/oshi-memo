@@ -1541,12 +1541,14 @@ function renderTemplates() {
   box.innerHTML = list.map((t, i) => `
     <div class="tpl-row">
       <div class="tpl-head">
-        <input type="text" class="tpl-name" data-i="${i}" value="${esc(t.name)}" placeholder="テンプレート名 (例: ファンアート)">
+        <label class="tpl-label" for="tpl-name-${i}">名前</label>
+        <input type="text" class="tpl-name" id="tpl-name-${i}" data-i="${i}" value="${esc(t.name)}" placeholder="例: ファンアート">
         <button type="button" data-tpl-up="${i}" title="上へ">↑</button>
         <button type="button" data-tpl-down="${i}" title="下へ">↓</button>
         <button type="button" data-tpl-remove="${i}" class="danger" title="削除">✕</button>
       </div>
-      <textarea class="tpl-text" data-i="${i}" rows="2" placeholder="例: {名前}さんのファンアートを描きました！ {ファンアート}">${esc(t.text)}</textarea>
+      <label class="tpl-label tpl-label-text" for="tpl-text-${i}">投稿内容</label>
+      <textarea class="tpl-text" id="tpl-text-${i}" data-i="${i}" rows="2" placeholder="例: {名前}さんのファンアートを描きました！ {ファンアート}">${esc(t.text)}</textarea>
     </div>`).join("");
   box.querySelectorAll(".tpl-name").forEach((inp) => (inp.oninput = () => (list[inp.dataset.i].name = inp.value)));
   box.querySelectorAll(".tpl-text").forEach((ta) => (ta.oninput = () => (list[ta.dataset.i].text = ta.value)));
