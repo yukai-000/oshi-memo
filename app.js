@@ -654,7 +654,7 @@ function renderDetail() {
       `<div class="oshi-memo-text" ${memoOpen ? "" : "hidden"}>${esc(memo)}</div>`
     : `<span class="none">未登録</span>`}</dd>`;
 
-  // 色の行 (色見本・カラーコードを押すとカラーコード、RGB を押すと「43, 58, 103」の形でコピー)
+  // 色の行 (色見本・カラーコードを押すとカラーコード、R・G・B を押すとその数字だけをコピー)
   const colorRows = state.colorFields.filter((f) => !hidden.has(f.id)).map((f) => {
     const list = ((v.colors || {})[f.id] || []).filter(isHex);
     const swatches = list.length
@@ -662,7 +662,12 @@ function renderDetail() {
           `<div class="swatch">` +
           `<button type="button" class="swatch-main" data-copy="${hex}" title="押すとカラーコードをコピー">` +
           `<span class="swatch-color" style="background:${hex}"></span><span class="swatch-hex">${hex.toUpperCase()}</span></button>` +
-          `<button type="button" class="swatch-rgb" data-copy="${hexToRgb(hex)}" title="押すと RGB をコピー">RGB ${hexToRgb(hex)}</button>` +
+          `<div class="swatch-rgb">` +
+          hexToRgb(hex).map((n, i) => {
+            const k = "RGB"[i];
+            return `<button type="button" class="rgb-part" data-copy="${n}" title="押すと ${k} の値をコピー"><span class="rgb-key">${k}</span><span class="rgb-num">${n}</span></button>`;
+          }).join("") +
+          `</div>` +
           `</div>`
         ).join("")
       : `<span class="none">未登録</span>`;
@@ -1297,7 +1302,7 @@ const colorRowHtml = (hex) => `
   <div class="color-row">
     <input type="color" value="${hex}">
     <input type="text" class="hex" value="${hex}" maxlength="7" spellcheck="false">
-    <span class="rgb">RGB ${hexToRgb(hex)}</span>
+    <span class="rgb">${rgbText(hex)}</span>
     <button type="button" class="rm" title="この色を削除">✕</button>
   </div>`;
 
@@ -1383,10 +1388,12 @@ function normalizeHex(s) {
   return /^[0-9a-f]{6}$/.test(t) ? "#" + t : null;
 }
 
-// 「#2b3a67」→「43, 58, 103」(RGB の数字をカンマ区切りにする)
+// 「#2b3a67」→ [43, 58, 103] (R・G・B の数字 3 つ)
 function hexToRgb(hex) {
-  return [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(", ");
+  return [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
 }
+// 「#2b3a67」→「R 43 G 58 B 103」(編集画面の表示用)
+const rgbText = (hex) => hexToRgb(hex).map((n, i) => `${"RGB"[i]} ${n}`).join(" ");
 
 // カラー入力欄の操作 (中身が作り直されても動くよう、親要素でまとめて受け取る)
 $("#vtuber-inputs").addEventListener("click", (e) => {
@@ -1419,7 +1426,7 @@ $("#vtuber-inputs").addEventListener("input", (e) => {
     if (hex) picker.value = hex;
   }
   // RGB の表示も合わせる (ピッカーの色は常に正しい形なので、そこから計算)
-  row.querySelector(".rgb").textContent = "RGB " + hexToRgb(picker.value);
+  row.querySelector(".rgb").textContent = rgbText(picker.value);
 });
 
 $("#dlg-vtuber").addEventListener("close", () => {
