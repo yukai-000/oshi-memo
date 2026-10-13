@@ -578,6 +578,12 @@ a.button:not([href]) { opacity: .4; pointer-events: none; }
 /* スマホの幅でも色の四角が縮まないようにする (縮むのはカラーコードの欄だけ) */
 .color-row input[type=color] { flex-shrink: 0; }
 .color-row .hex { min-width: 0; }
+/* 幅の狭いスマホでは、RGB をカラーコードの下の行に回す (カラーコードの欄が狭くなりすぎないように) */
+@media (max-width: 380px) {
+  .color-row { flex-wrap: wrap; row-gap: 0; }
+  .color-row .rm { order: 2; }
+  .color-row .rgb { order: 3; flex-basis: 100%; padding-left: 48px; }
+}
 .add-color { font-size: 13px; padding: 2px 12px; margin-top: 2px; }
 dialog h3 {
   font-family: var(--hand);

@@ -660,7 +660,7 @@ function renderDetail() {
     const swatches = list.length
       ? list.map((hex) =>
           `<div class="swatch">` +
-          `<button type="button" class="swatch-main" data-copy="${hex}" title="押すとカラーコードをコピー">` +
+          `<button type="button" class="swatch-main" data-copy="${hex.toUpperCase()}" title="押すとカラーコードをコピー">` +
           `<span class="swatch-color" style="background:${hex}"></span><span class="swatch-hex">${hex.toUpperCase()}</span></button>` +
           `<div class="swatch-rgb">` +
           hexToRgb(hex).map((n, i) => {
@@ -1269,7 +1269,7 @@ function pickColor(e) {
   $("#lb-pick").hidden = false;
 }
 
-$("#lb-pick-copy").onclick = () => lb.picked && copy(lb.picked);
+$("#lb-pick-copy").onclick = () => lb.picked && copy(lb.picked.toUpperCase()); // 表示と同じ大文字でコピー
 $("#lb-pick-add").onclick = () => {
   const v = current();
   const fid = $("#lb-pick-field").value;
