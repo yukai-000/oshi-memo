@@ -168,16 +168,16 @@ async function start() {
       settings = { fields: DEFAULT_FIELDS, colorFields: DEFAULT_COLOR_FIELDS, dateFields: DEFAULT_DATE_FIELDS, postTemplate: DEFAULT_POST_TEMPLATE, lastBackupAt: 0, fanartRenamed: true };
       await store.saveSettings(settings);
     }
-    // 以前の初期項目のまま (自分で項目を変えていない) なら、新しい初期項目に入れ替える
-    if (settings.fields && settings.fields.map((f) => f.id).join(",") === OLD_DEFAULT_IDS) {
-      settings.fields = DEFAULT_FIELDS;
-      await store.saveSettings({ fields: DEFAULT_FIELDS });
-    }
-    // 1 回だけ: 項目名「ファンアートタグ」→「ファンアート」
+    // 1 回だけ (前の 4 項目の入れ替えより先に行う): 項目名「ファンアートタグ」→「ファンアート」
     if (!settings.fanartRenamed) {
       const patch = renameFanartLabel(settings) || {};
       Object.assign(settings, patch, { fanartRenamed: true });
       await store.saveSettings({ ...patch, fanartRenamed: true });
+    }
+    // 以前の初期項目のまま (自分で項目を変えていない) なら、新しい初期項目に入れ替える
+    if (settings.fields && settings.fields.map((f) => f.id).join(",") === OLD_DEFAULT_IDS) {
+      settings.fields = DEFAULT_FIELDS;
+      await store.saveSettings({ fields: DEFAULT_FIELDS });
     }
     applySettings(settings);
     await loadVtubers();
@@ -358,11 +358,14 @@ $("#ask-input").addEventListener("keydown", (e) => {
 //  - 戻り値: 変えるべき設定 (変えるものが無ければ null)
 function renameFanartLabel(s) {
   const fields = Array.isArray(s.fields) ? s.fields : [];
+  // テンプレートを一度も保存していない人は、前の初期テンプレート {ファンアートタグ} を使っていたことになる
+  const stored = Array.isArray(s.postTemplates) || typeof s.postTemplate === "string";
+  let tpls = templatesOf(stored ? s : { ...s, postTemplate: `{${OLD_FANART_LABEL}}` });
   const f = fields.find((x) => x && x.label === OLD_FANART_LABEL);
-  if (!f || fields.some((x) => x && x.label === NEW_FANART_LABEL)) return null;
-  const tpls = templatesOf(s).map((t) => ({ ...t, text: t.text.split(`{${OLD_FANART_LABEL}}`).join(`{${NEW_FANART_LABEL}}`) }));
+  const rename = f && !fields.some((x) => x && x.label === NEW_FANART_LABEL);
+  if (rename) tpls = tpls.map((t) => ({ ...t, text: t.text.split(`{${OLD_FANART_LABEL}}`).join(`{${NEW_FANART_LABEL}}`) }));
   return {
-    fields: fields.map((x) => (x === f ? { ...x, label: NEW_FANART_LABEL } : x)),
+    ...(rename ? { fields: fields.map((x) => (x === f ? { ...x, label: NEW_FANART_LABEL } : x)) } : {}),
     postTemplates: tpls,
     postTemplate: tpls.find((t) => t.text.trim())?.text || "",
   };
