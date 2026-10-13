@@ -22,7 +22,7 @@ const DEFAULT_FIELDS = [
   { id: "furigana", label: "ふりがな" },          // 一覧のあいうえお順・検索に使う
   { id: "office", label: "事務所" },
   { id: "fanmark", label: "ファンマーク" },
-  { id: "fanart", label: "ファンアートタグ" },
+  { id: "fanart", label: "ファンアート" },
   { id: "thumbnail", label: "サムネイル" },      // サムネイル用イラストのタグなど
   { id: "voice", label: "ボイス" },
   { id: "egosearch", label: "エゴサーチ" },
@@ -30,7 +30,9 @@ const DEFAULT_FIELDS = [
 // 以前の初期項目 (この 4 つのまま使っている人には、新しい項目を自動で足す)
 const OLD_DEFAULT_IDS = "name,office,fanmark,fanart";
 // 投稿テンプレートの初期値 ({項目名} の部分に登録内容が入る)
-const DEFAULT_POST_TEMPLATE = "{ファンアートタグ}";
+const DEFAULT_POST_TEMPLATE = "{ファンアート}";
+// 前の初期の項目名 (このまま使っている人は、1 回だけ新しい名前「ファンアート」に変える)
+const OLD_FANART_LABEL = "ファンアートタグ", NEW_FANART_LABEL = "ファンアート";
 // 新しい Vtuber に最初から作るフォルダ
 const DEFAULT_FOLDER = "通常衣装";
 // 何日バックアップしていないと、お知らせを出すか
@@ -44,7 +46,7 @@ const state = {
   fields: [],        // 登録項目 [{id, label}]
   colorFields: [],   // 色の項目 [{id, label}] (髪の色・目の色など)
   dateFields: [],    // 日付の項目 [{id, label}] (デビュー日・推し始めた日など)
-  postTemplate: DEFAULT_POST_TEMPLATE, // X に投稿するときの文章の型
+  postTemplates: [], // X に投稿するときの文章の型 [{id, name, text}] (2 つ以上なら投稿するときに選ぶ)
   vtubers: [],       // Vtuber の一覧 [{id, values, folders}]
   images: [],        // 選択中の Vtuber の画像の一覧 [{id, folder, name, thumb, ...}]
   selectedId: null,  // 選択中の Vtuber の ID
@@ -155,13 +157,19 @@ async function start() {
     // 設定 (初めて開いたときは初期の項目を作る)
     let settings = await store.getSettings();
     if (!settings) {
-      settings = { fields: DEFAULT_FIELDS, colorFields: DEFAULT_COLOR_FIELDS, dateFields: DEFAULT_DATE_FIELDS, postTemplate: DEFAULT_POST_TEMPLATE, lastBackupAt: 0 };
+      settings = { fields: DEFAULT_FIELDS, colorFields: DEFAULT_COLOR_FIELDS, dateFields: DEFAULT_DATE_FIELDS, postTemplate: DEFAULT_POST_TEMPLATE, lastBackupAt: 0, fanartRenamed: true };
       await store.saveSettings(settings);
     }
     // 以前の初期項目のまま (自分で項目を変えていない) なら、新しい初期項目に入れ替える
     if (settings.fields && settings.fields.map((f) => f.id).join(",") === OLD_DEFAULT_IDS) {
       settings.fields = DEFAULT_FIELDS;
       await store.saveSettings({ fields: DEFAULT_FIELDS });
+    }
+    // 1 回だけ: 項目名「ファンアートタグ」→「ファンアート」
+    if (!settings.fanartRenamed) {
+      const patch = renameFanartLabel(settings) || {};
+      Object.assign(settings, patch, { fanartRenamed: true });
+      await store.saveSettings({ ...patch, fanartRenamed: true });
     }
     applySettings(settings);
     await loadVtubers();
@@ -190,7 +198,7 @@ function applySettings(settings) {
   state.fields = settings.fields || DEFAULT_FIELDS;
   state.colorFields = settings.colorFields || DEFAULT_COLOR_FIELDS;
   state.dateFields = settings.dateFields || DEFAULT_DATE_FIELDS;
-  state.postTemplate = settings.postTemplate ?? DEFAULT_POST_TEMPLATE;
+  state.postTemplates = templatesOf(settings);
   state.lastBackupAt = settings.lastBackupAt || 0;
 }
 
@@ -336,6 +344,33 @@ $("#ask-input").addEventListener("keydown", (e) => {
     $("#dlg-ask").close("ok");
   }
 });
+
+// 前の初期の項目名「ファンアートタグ」を「ファンアート」に変える (自分で名前を変えている人はそのまま)
+//  - 変えたら、投稿テンプレートの {ファンアートタグ} も {ファンアート} にする
+//  - 戻り値: 変えるべき設定 (変えるものが無ければ null)
+function renameFanartLabel(s) {
+  const fields = Array.isArray(s.fields) ? s.fields : [];
+  const f = fields.find((x) => x && x.label === OLD_FANART_LABEL);
+  if (!f || fields.some((x) => x && x.label === NEW_FANART_LABEL)) return null;
+  const tpls = templatesOf(s).map((t) => ({ ...t, text: t.text.split(`{${OLD_FANART_LABEL}}`).join(`{${NEW_FANART_LABEL}}`) }));
+  return {
+    fields: fields.map((x) => (x === f ? { ...x, label: NEW_FANART_LABEL } : x)),
+    postTemplates: tpls,
+    postTemplate: tpls.find((t) => t.text.trim())?.text || "",
+  };
+}
+
+// 投稿テンプレートの一覧を、保存されている設定から作る
+//  - 複数の形 (postTemplates) があればそれを使う。壊れた行は捨てる
+//  - 前の 1 つだけの形 (postTemplate) なら、それを「テンプレート1」にする
+function templatesOf(s = {}) {
+  if (Array.isArray(s.postTemplates)) {
+    return s.postTemplates
+      .filter((t) => t && typeof t.text === "string")
+      .map((t, i) => ({ id: typeof t.id === "string" && t.id ? t.id : "t" + (i + 1), name: typeof t.name === "string" && t.name.trim() ? t.name : `テンプレート${i + 1}`, text: t.text }));
+  }
+  return [{ id: "t1", name: "テンプレート1", text: typeof s.postTemplate === "string" ? s.postTemplate : DEFAULT_POST_TEMPLATE }];
+}
 
 // メモ (文字でないときは空として扱う)
 const memoOf = (v) => (typeof v.memo === "string" ? v.memo : "");
@@ -655,6 +690,10 @@ function renderDetail() {
         <button id="btn-upload" class="primary">画像を追加</button>
         <button id="btn-rename-folder">フォルダ名を変更</button>
         <button id="btn-delete-folder" class="danger">フォルダを削除</button>
+        <span class="folder-move">
+          <button id="btn-folder-left" title="このフォルダを左へ" ${folders.indexOf(state.folder) <= 0 ? "disabled" : ""}>◀ 左へ</button>
+          <button id="btn-folder-right" title="このフォルダを右へ" ${folders.indexOf(state.folder) >= folders.length - 1 ? "disabled" : ""}>右へ ▶</button>
+        </span>
         <input id="file-input" type="file" accept="image/*" multiple hidden>
       </div>
       <div class="dropzone" id="dropzone">ここに画像をドラッグ＆ドロップ / Ctrl+V で貼り付けでも追加できます</div>
@@ -666,7 +705,7 @@ function renderDetail() {
       <div class="card-head">
         <h2><span class="marker">${esc(titleOf(v))}</span>
           <button id="btn-fav" class="fav-btn ${v.favorite ? "on" : ""}" title="${v.favorite ? "お気に入りから外す" : "お気に入りにする"}">${v.favorite ? "★" : "☆"}</button></h2>
-        <button id="btn-post" class="post-btn" title="ファンアートタグ入りで X の投稿画面を開く">𝕏 で投稿</button>
+        <button id="btn-post" class="post-btn" title="投稿テンプレートの文章で X の投稿画面を開く">𝕏 で投稿</button>
         <button id="btn-edit">編集</button>
         <button id="btn-delete" class="danger">削除</button>
       </div>
@@ -680,7 +719,7 @@ function renderDetail() {
       <dl class="fields">${rows}${memoRow}${colorRows}${bdayRow}${dateRows}${linkRow}</dl>
     </section>
     <section class="card">
-      <div class="card-head"><h2>参考画像</h2><button id="btn-add-folder">＋ フォルダ</button></div>
+      <div class="card-head"><h2>画像</h2><button id="btn-add-folder">＋ フォルダ</button></div>
       <div class="folders">${tabs}</div>
       ${imagesHtml}
     </section>`;
@@ -743,6 +782,8 @@ function bindDetailEvents(v) {
   dz.ondrop = (e) => { e.preventDefault(); dz.classList.remove("over"); upload(e.dataTransfer.files); };
 
   $("#btn-rename-folder").onclick = () => renameFolder(v).catch(fail);
+  $("#btn-folder-left").onclick = () => moveFolder(v, -1).catch(fail);
+  $("#btn-folder-right").onclick = () => moveFolder(v, 1).catch(fail);
   $("#btn-delete-folder").onclick = () => deleteFolder(v).catch(fail);
 
   // 画像を押すと拡大表示
@@ -787,8 +828,8 @@ function linkLabel(url) {
 // X (旧 Twitter) に投稿
 // ------------------------------------------------------------
 // テンプレートの {項目名} を、その Vtuber の登録内容に置き換える
-function buildPostText(v) {
-  const text = state.postTemplate.replace(/\{([^{}]+)\}/g, (all, label) => {
+function buildPostText(v, tpl) {
+  const text = tpl.replace(/\{([^{}]+)\}/g, (all, label) => {
     const f = state.fields.find((x) => x.label === label.trim());
     if (!f) return all; // 無い項目名はそのまま残す
     if (hiddenOf(v).has(f.id)) return ""; // この推しで非表示にしている項目は入れない
@@ -798,8 +839,8 @@ function buildPostText(v) {
 }
 
 // テンプレートで使っている項目のうち、この Vtuber で未登録のもの (項目名の一覧)
-function missingPostFields(v) {
-  return [...state.postTemplate.matchAll(/\{([^{}]+)\}/g)]
+function missingPostFields(v, tpl) {
+  return [...tpl.matchAll(/\{([^{}]+)\}/g)]
     .map((m) => m[1].trim())
     .filter((label) => {
       const f = state.fields.find((x) => x.label === label);
@@ -807,11 +848,29 @@ function missingPostFields(v) {
     });
 }
 
+// 「𝕏 で投稿」: テンプレートが 1 つならすぐ投稿画面へ、2 つ以上なら選ぶ画面を出す
 function openPost(v) {
-  // テンプレートそのものが空のとき
-  if (!state.postTemplate.trim()) return toast("投稿テンプレートが空です。「⚙ 項目・設定」で設定してください");
-  const text = buildPostText(v);
-  const missing = missingPostFields(v);
+  const list = state.postTemplates.filter((t) => t.text.trim());
+  if (!list.length) return toast("投稿テンプレートが空です。「⚙ 項目・設定」で設定してください");
+  if (list.length === 1) return postWith(v, list[0].text);
+  // 選ぶ画面: それぞれのボタンに、この推しの内容を当てはめた文章を出す
+  $("#tpl-pick").innerHTML = list.map((t, i) => {
+    const text = buildPostText(v, t.text);
+    return `<button type="button" class="tpl-option" data-i="${i}"><b>${esc(t.name)}</b>` +
+      `<span>${text ? esc(text) : "（この推しでは入る内容がありません）"}</span></button>`;
+  }).join("");
+  // 押したらすぐ投稿画面を開く (ブラウザに止められないよう、押した流れのまま開く)
+  $("#tpl-pick").querySelectorAll(".tpl-option").forEach((b) => (b.onclick = () => {
+    $("#dlg-tpl").close();
+    postWith(v, list[+b.dataset.i].text);
+  }));
+  $("#dlg-tpl").showModal();
+}
+
+// 選んだテンプレートで X の投稿画面を開く
+function postWith(v, tpl) {
+  const text = buildPostText(v, tpl);
+  const missing = missingPostFields(v, tpl);
   const names = missing.map((l) => `「${l}」`).join("");
   // 当てはめた結果が空 = 使っている項目がこの人では未登録
   if (!text) return toast(missing.length ? `${names}が未登録です。「編集」から登録してください`
@@ -868,6 +927,16 @@ async function addFolder(v) {
   if (!name) return;
   state.folder = name;
   await store.updateVtuber(v.id, { folders: [...(v.folders || []), name] });
+  await reload();
+}
+
+// 選んでいるフォルダを左 (d = -1) か右 (d = 1) に 1 つ動かす
+async function moveFolder(v, d) {
+  const folders = [...(v.folders || [])];
+  const i = folders.indexOf(state.folder), j = i + d;
+  if (i < 0 || j < 0 || j >= folders.length) return;
+  [folders[i], folders[j]] = [folders[j], folders[i]];
+  await store.updateVtuber(v.id, { folders });
   await reload();
 }
 
@@ -1395,7 +1464,7 @@ $("#btn-add-vtuber").onclick = () => { closeDrawer(); openVtuberDialog(null); };
 // 登録項目の編集ダイアログ (テキスト項目とカラー項目の 2 種類)
 // ------------------------------------------------------------
 // ダイアログ内で編集中の項目 (保存を押すまで反映しない)
-const drafts = { fields: [], colorFields: [], dateFields: [] };
+const drafts = { fields: [], colorFields: [], dateFields: [], postTemplates: [] };
 // どの一覧をどの <ul> に表示するか
 const ROW_LISTS = { fields: "#field-rows", colorFields: "#color-field-rows", dateFields: "#date-field-rows" };
 
@@ -1450,15 +1519,63 @@ $("#btn-fields").onclick = () => {
   renderRows("colorFields");
   drafts.dateFields = state.dateFields.map((f) => ({ ...f }));
   renderRows("dateFields");
-  $("#post-template").value = state.postTemplate;
+  drafts.postTemplates = state.postTemplates.map((t) => ({ ...t }));
+  renderTemplates();
   renderStorageInfo();
   $("#dlg-fields").returnValue = "";
   $("#dlg-fields").showModal();
 };
 
+// 投稿テンプレートの一覧 (名前 + 文章。↑↓ で並べ替え、✕ で削除。保存を押すまで反映しない)
+function renderTemplates() {
+  const list = drafts.postTemplates;
+  const box = $("#tpl-rows");
+  box.innerHTML = list.map((t, i) => `
+    <div class="tpl-row">
+      <div class="tpl-head">
+        <input type="text" class="tpl-name" data-i="${i}" value="${esc(t.name)}" placeholder="テンプレート名 (例: ファンアート)">
+        <button type="button" data-tpl-up="${i}" title="上へ">↑</button>
+        <button type="button" data-tpl-down="${i}" title="下へ">↓</button>
+        <button type="button" data-tpl-remove="${i}" class="danger" title="削除">✕</button>
+      </div>
+      <textarea class="tpl-text" data-i="${i}" rows="2" placeholder="例: {名前}さんのファンアートを描きました！ {ファンアート}">${esc(t.text)}</textarea>
+    </div>`).join("");
+  box.querySelectorAll(".tpl-name").forEach((inp) => (inp.oninput = () => (list[inp.dataset.i].name = inp.value)));
+  box.querySelectorAll(".tpl-text").forEach((ta) => (ta.oninput = () => (list[ta.dataset.i].text = ta.value)));
+  const swap = (i, j) => {
+    if (j < 0 || j >= list.length) return;
+    [list[i], list[j]] = [list[j], list[i]];
+    renderTemplates();
+  };
+  box.querySelectorAll("[data-tpl-up]").forEach((b) => (b.onclick = () => swap(+b.dataset.tplUp, +b.dataset.tplUp - 1)));
+  box.querySelectorAll("[data-tpl-down]").forEach((b) => (b.onclick = () => swap(+b.dataset.tplDown, +b.dataset.tplDown + 1)));
+  box.querySelectorAll("[data-tpl-remove]").forEach((b) => (b.onclick = async () => {
+    const t = list[+b.dataset.tplRemove];
+    const yes = await askConfirm({ title: `テンプレート「${t.name || "名前なし"}」を削除しますか？`, body: "「保存」を押すまでは、まだ削除されません。", ok: "削除する", danger: true });
+    if (!yes) return;
+    list.splice(+b.dataset.tplRemove, 1);
+    renderTemplates();
+  }));
+}
+$("#btn-add-tpl").onclick = () => {
+  drafts.postTemplates.push({ id: newId(), name: "", text: "" });
+  renderTemplates();
+  document.querySelector("#tpl-rows .tpl-row:last-child .tpl-name").focus();
+};
+
+$("#dlg-fields").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.isComposing && e.target.matches("input[type=text]")) e.preventDefault();
+});
+
 $("#btn-add-field").onclick = () => addRow("fields");
 $("#btn-add-color-field").onclick = () => addRow("colorFields");
 $("#btn-add-date-field").onclick = () => addRow("dateFields");
+
+// 保存するテンプレートの一覧 (名前も文章も空の行は捨てる。名前が空なら番号を付ける)
+const cleanTemplates = (list) => list
+  .map((t) => ({ id: t.id, name: t.name.trim(), text: t.text.trim() }))
+  .filter((t) => t.name || t.text)
+  .map((t, i) => ({ ...t, name: t.name || `テンプレート${i + 1}` }));
 
 $("#dlg-fields").addEventListener("close", () => {
   if ($("#dlg-fields").returnValue !== "ok") return;
@@ -1471,7 +1588,8 @@ $("#dlg-fields").addEventListener("close", () => {
     fields,
     colorFields: clean(drafts.colorFields),
     dateFields: clean(drafts.dateFields),
-    postTemplate: $("#post-template").value.trim(),
+    postTemplates: cleanTemplates(drafts.postTemplates),
+    postTemplate: cleanTemplates(drafts.postTemplates).find((t) => t.text)?.text || "", // 前の形 (1 つだけ) も残しておく
   }).then(reload).catch(fail);
   toast("設定を保存しました");
 });
@@ -1493,7 +1611,8 @@ function backupData() {
     fields: state.fields,
     colorFields: state.colorFields,
     dateFields: state.dateFields,
-    postTemplate: state.postTemplate,
+    postTemplates: state.postTemplates,
+    postTemplate: state.postTemplates.find((t) => t.text.trim())?.text || "", // 前の形 (1 つだけ) も入れておく
     vtubers: state.vtubers.map((v) => {
       const out = { id: v.id };
       BACKUP_KEYS.forEach((k) => v[k] !== undefined && (out[k] = v[k]));
@@ -1583,7 +1702,10 @@ $("#import-input").onchange = async (e) => {
     if (fields && fields.length) settings.fields = fields; // 文字の項目は 1 つ以上必要
     if (colorFields) settings.colorFields = colorFields;
     if (dateFields) settings.dateFields = dateFields;
-    if (typeof data.postTemplate === "string") settings.postTemplate = data.postTemplate;
+    if (Array.isArray(data.postTemplates) || typeof data.postTemplate === "string") {
+      settings.postTemplates = templatesOf(data);
+      settings.postTemplate = settings.postTemplates.find((t) => t.text.trim())?.text || "";
+    }
     await store.saveSettings(settings);
 
     // 推しの登録内容 (名前など) は、文字のものだけにそろえる

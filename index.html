@@ -20,7 +20,7 @@
   <script src="theme.js?v=20261009-2"></script>
   <!-- ?v=… は「バージョン番号」。アプリを更新したら数字を変えると、
        スマホなどに残っている古いファイルではなく、新しいファイルが必ず読み込まれる -->
-  <link rel="stylesheet" href="style.css?v=20261010-1">
+  <link rel="stylesheet" href="style.css?v=20261013-2">
 </head>
 <body>
   <!-- 読み込み中の表示 -->
@@ -102,6 +102,17 @@
     </form>
   </dialog>
 
+  <!-- 「𝕏 で投稿」でテンプレートを選ぶ画面 (テンプレートが 2 つ以上のとき) -->
+  <dialog id="dlg-tpl">
+    <form method="dialog">
+      <h2>どのテンプレートで投稿しますか？</h2>
+      <div id="tpl-pick"></div>
+      <div class="dlg-buttons">
+        <button value="cancel">やめる</button>
+      </div>
+    </form>
+  </dialog>
+
   <!-- 確認・入力のポップアップ (ブラウザの確認画面の代わり。中身は app.js の askDialog で入れる) -->
   <dialog id="dlg-ask">
     <form method="dialog">
@@ -133,9 +144,10 @@
       <ul id="date-field-rows"></ul>
       <button type="button" id="btn-add-date-field">＋ 日付の項目を追加</button>
       <h3>投稿テンプレート</h3>
-      <p class="hint">「𝕏 で投稿」を押したときの文章です。<b>{項目名}</b> の部分にその人の登録内容が入ります。<br>
-        例: {名前}さんのファンアートを描きました！ {ファンアートタグ}</p>
-      <textarea id="post-template" rows="3"></textarea>
+      <p class="hint">「𝕏 で投稿」を押したときの文章です。<b>{項目名}</b> の部分にその人の登録内容が入ります。2 つ以上あるときは、投稿するときに選べます。<br>
+        例: {名前}さんのファンアートを描きました！ {ファンアート}</p>
+      <div id="tpl-rows"></div>
+      <button type="button" id="btn-add-tpl">＋ テンプレートを追加</button>
       <h3>バックアップ</h3>
       <p class="hint">データはこの端末の中だけにあります。ときどき書き出して、PC やクラウドに保存しておくと安心です。<br>
         「画像も含めて」のファイルを別の端末で読み込めば、データのお引っ越しもできます。<br>
@@ -193,6 +205,6 @@
   <!-- type="module" にすると import が使える -->
   <!-- zip の書き出し・読み込み用ライブラリ (JSZip, MIT ライセンス) -->
   <script src="lib/jszip.min.js"></script>
-  <script type="module" src="app.js?v=20261011-1"></script>
+  <script type="module" src="app.js?v=20261013-2"></script>
 </body>
 </html>

@@ -800,7 +800,7 @@ select option { background: var(--sheet); color: var(--ink); }
 
 /* 設定画面のバックアップのボタン */
 .backup-buttons { display: flex; gap: 8px; }
-#post-template { font-size: 14px; }
+.tpl-row .tpl-text { font-size: 14px; }
 
 @media (max-width: 720px) {
   .lightbox-tools { gap: 6px; }
@@ -930,3 +930,21 @@ button.danger-fill:hover { background: var(--danger); opacity: .88; }
 
 /* ---------- アンケートへのリンク (項目・設定の一番下 / マニュアル) ---------- */
 a.survey-link { margin-top: 4px; }
+
+/* ---------- 投稿テンプレート (複数) ---------- */
+/* 項目・設定のテンプレート 1 つ分 (名前 + ↑↓✕ + 文章) */
+.tpl-row { margin: 0 0 14px; }
+.tpl-head { display: flex; gap: 4px; align-items: center; }
+.tpl-head .tpl-name { flex: 1; min-width: 0; font-family: var(--hand); font-size: 15px; }
+.tpl-head button { padding: 2px 9px; }
+.tpl-row .tpl-text { width: 100%; margin-top: 6px; }
+/* 「𝕏 で投稿」で選ぶ画面 */
+#dlg-tpl { width: min(440px, 92vw); }
+#dlg-tpl h2 { font-size: 19px; }
+.tpl-option { display: block; width: 100%; text-align: left; margin: 0 0 8px; padding: 10px 12px; }
+.tpl-option b { display: block; font-family: var(--hand); font-weight: 600; }
+.tpl-option span { display: block; font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+
+/* ---------- フォルダの左右入れ替え ---------- */
+.folder-move { display: inline-flex; gap: 4px; margin-left: auto; }
+.folder-move button:disabled { opacity: .35; cursor: default; transform: none; }
