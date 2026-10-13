@@ -908,7 +908,7 @@ function select(id) {
 }
 
 async function deleteVtuber(v) {
-  if (!(await askConfirm({ title: `「${titleOf(v)}」を削除しますか？`, body: "登録した内容と、保存した参考画像がすべて削除されます。元に戻せません。", ok: "削除する", danger: true }))) return;
+  if (!(await askConfirm({ title: `「${titleOf(v)}」を削除しますか？`, body: "登録した内容と、保存した画像がすべて削除されます。元に戻せません。", ok: "削除する", danger: true }))) return;
   await store.deleteVtuber(v.id);
   select(null);
   await reload();
