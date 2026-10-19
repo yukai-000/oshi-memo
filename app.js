@@ -928,7 +928,7 @@ function missingPostFields(v, tpl) {
 // 「𝕏 で投稿」: テンプレートが 1 つならすぐ投稿画面へ、2 つ以上なら選ぶ画面を出す
 function openPost(v) {
   const list = state.postTemplates.filter((t) => t.text.trim());
-  if (!list.length) return toast("投稿テンプレートが空です。「⚙ 項目・設定」で設定してください");
+  if (!list.length) return toast("投稿テンプレートが空です。「⚙ 設定」で設定してください");
   if (list.length === 1) return postWith(v, list[0].text);
   // 選ぶ画面: それぞれのボタンに、この推しの内容を当てはめた文章を出す
   $("#tpl-pick").innerHTML = list.map((t, i) => {
@@ -1778,7 +1778,7 @@ $("#import-input").onchange = async (e) => {
     const zip = isZip ? await JSZip.loadAsync(file) : null;
     const text = zip ? await zip.file("data.json")?.async("string") : await file.text();
     const data = JSON.parse(text || "{}");
-    if (data.app !== "oshi-memo" || !Array.isArray(data.vtubers)) return toast("推しメモ帳のバックアップファイルではありません");
+    if (data.app !== "oshi-memo" || !Array.isArray(data.vtubers)) return toast("Oshi Memo のバックアップファイルではありません");
     const imageCount = Array.isArray(data.images) ? data.images.length : 0;
     const yes = await askConfirm({
       title: "バックアップを読み込みますか？",

@@ -5,22 +5,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f5f0e6">
   <meta name="description" content="Vtuber のファンマーク・ファンアートタグ・画像をまとめて保存できるメモ帳。データはあなたの端末の中だけに保存されます。">
-  <title>推しメモ帳</title>
+  <title>Oshi Memo</title>
   <!-- タブのアイコンとスマホのホーム画面用アイコン -->
   <link rel="icon" href="favicon.ico" sizes="32x32">
   <link rel="icon" href="icon-192.png" type="image/png" sizes="192x192">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="manifest" href="manifest.webmanifest">
-  <meta name="apple-mobile-web-app-title" content="推しメモ帳">
+  <meta name="apple-mobile-web-app-title" content="Oshi Memo">
   <!-- フォント: Klee One (手書き風) と Zen Maru Gothic (丸ゴシック) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Klee+One:wght@400;600&family=Zen+Maru+Gothic:wght@400;500;700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=Klee+One:wght@400;600&family=Zen+Maru+Gothic:wght@400;500;700&display=swap">
   <!-- 画面の明るさ (☀/🌙) を最初に決める -->
-  <script src="theme.js?v=20261009-2"></script>
+  <script src="theme.js?v=20261019-1"></script>
   <!-- ?v=… は「バージョン番号」。アプリを更新したら数字を変えると、
        スマホなどに残っている古いファイルではなく、新しいファイルが必ず読み込まれる -->
-  <link rel="stylesheet" href="style.css?v=20261019-7">
+  <link rel="stylesheet" href="style.css?v=20261019-10">
 </head>
 <body>
   <!-- 読み込み中の表示 -->
@@ -29,12 +29,12 @@
   <!-- 上のバー: 左に ☰ とタイトル、右に登録項目の編集とログイン情報 -->
   <header class="topbar" id="topbar" hidden>
     <button id="btn-menu" class="icon-btn" title="推しの一覧" aria-label="推しの一覧">☰</button>
-    <h1>推しメモ帳</h1>
+    <h1 class="app-title">Oshi Memo</h1>
     <div class="topbar-right">
-      <button id="btn-theme" class="ghost" title="画面の明るさ">🌙</button>
       <button id="btn-cal" class="ghost" title="カレンダー (誕生日・記念日・予定)">📅<span class="wide-only"> カレンダー</span></button>
-      <button id="btn-fields" class="ghost" title="登録項目の編集・設定">⚙<span class="wide-only"> 項目・設定</span><span class="narrow-only"> 設定</span></button>
-      <button id="btn-help" class="ghost" title="使い方・注意点">？<span class="wide-only"> 使い方・注意点</span></button>
+      <button id="btn-theme" class="ghost" title="画面の明るさ">🌙</button>
+      <button id="btn-fields" class="ghost" title="登録項目の編集・設定">⚙ 設定</button>
+      <button id="btn-help" class="ghost" title="使い方・注意点">？<span class="wide-only"> 使い方</span></button>
     </div>
   </header>
 
@@ -71,7 +71,7 @@
   <!-- はじめに・注意点 -->
   <dialog id="dlg-help">
     <form method="dialog">
-      <h2>推しメモ帳へようこそ</h2>
+      <h2>Oshi Memo へようこそ</h2>
       <p>Vtuber のファンマーク・ファンアートタグ・色・画像をまとめて保存できるメモ帳です。</p>
       <h3>⚠ 使う前に知っておいてほしいこと</h3>
       <ul class="help-list">
@@ -227,6 +227,6 @@
   <!-- type="module" にすると import が使える -->
   <!-- zip の書き出し・読み込み用ライブラリ (JSZip, MIT ライセンス) -->
   <script src="lib/jszip.min.js"></script>
-  <script type="module" src="app.js?v=20261019-4"></script>
+  <script type="module" src="app.js?v=20261019-6"></script>
 </body>
 </html>

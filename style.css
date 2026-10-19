@@ -730,6 +730,10 @@ dialog label.countdown-check {
 .bday-banner.two .banner-events { border-left: 1.5px dashed rgba(59, 53, 48, .3); padding-left: 18px; }
 .bday-banner .banner-events ul { flex-direction: column; }
 .bday-banner .ev-title { opacity: .9; font-size: 13px; }
+/* 今日の予定: 名前と時刻の行の下に内容を出す (長い名前・内容でもつぶれないように) */
+.bday-banner .banner-events .bday-item { flex-wrap: wrap; text-align: left; }
+.bday-banner .banner-events .ev-title { flex-basis: 100%; padding-left: 40px; overflow-wrap: anywhere; }
+.bday-banner .banner-events .bday-name { min-width: 0; overflow-wrap: anywhere; }
 @media (max-width: 600px) {
   .bday-banner.two { grid-template-columns: 1fr; }
   .bday-banner.two .banner-events { border-left: none; padding-left: 0; border-top: 1.5px dashed rgba(59, 53, 48, .3); padding-top: 8px; margin-top: 8px; }
@@ -1119,3 +1123,11 @@ dialog label.tpl-label-text { display: block; margin: 10px 0 0; }
 .add-event-btn { font-size: 13px; padding: 2px 12px; margin-top: 6px; }
 /* カレンダーから来たときの「← カレンダーに戻る」 */
 .back-cal { margin: 0 0 18px; font-size: 14px; padding: 4px 14px; }
+
+/* ---------- アプリの名前「Oshi Memo」(手書きのペン字風のフォント Caveat) ---------- */
+h1.app-title { font-family: "Caveat", var(--hand), cursive; font-weight: 600; letter-spacing: .01em; line-height: 1.1; }
+.topbar h1.app-title { font-size: 31px; }
+@media (max-width: 720px) { .topbar h1.app-title { font-size: 27px; } }
+@media (max-width: 340px) { .topbar h1.app-title { font-size: 24px; } }
+/* 上のバーが狭いときは、ボタンではなくタイトルのほうを縮めて「…」にする */
+.topbar-right { flex-shrink: 0; }

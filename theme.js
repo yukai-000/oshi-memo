@@ -24,10 +24,10 @@
     const btn = document.getElementById("btn-theme");
     if (btn) {
       // 絵だけだと分かりにくいので、押すとどうなるかを文字でも書く
-      // (スマホなど狭い画面では「モード」を省いて短くする)
+      // (「ライト」「ダーク」の 2 文字だけにして短くする)
       btn.innerHTML = dark
-        ? '☀<span class="theme-label">ライト<span class="wide-only">モード</span></span>'
-        : '🌙<span class="theme-label">ダーク<span class="wide-only">モード</span></span>';
+        ? '☀<span class="theme-label">ライト</span>'
+        : '🌙<span class="theme-label">ダーク</span>';
       btn.title = dark ? "昼のノート (明るい画面) にする" : "夜のノート (暗い画面) にする";
       btn.setAttribute("aria-label", btn.title);
     }

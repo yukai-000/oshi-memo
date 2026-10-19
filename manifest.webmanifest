@@ -1,6 +1,6 @@
 {
-  "name": "推しメモ帳",
-  "short_name": "推しメモ帳",
+  "name": "Oshi Memo",
+  "short_name": "Oshi Memo",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
