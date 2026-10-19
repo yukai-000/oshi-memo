@@ -20,7 +20,7 @@
   <script src="theme.js?v=20261019-1"></script>
   <!-- ?v=… は「バージョン番号」。アプリを更新したら数字を変えると、
        スマホなどに残っている古いファイルではなく、新しいファイルが必ず読み込まれる -->
-  <link rel="stylesheet" href="style.css?v=20261020-1">
+  <link rel="stylesheet" href="style.css?v=20261020-2">
 </head>
 <body>
   <!-- 読み込み中の表示 -->
@@ -118,18 +118,19 @@
   <dialog id="dlg-event">
     <form method="dialog">
       <h2 id="event-title" tabindex="-1" autofocus>予定を追加</h2>
+      <p class="hint ev-req-hint"><span class="req">＊</span> は必ず入れる項目です</p>
       <div class="ev-form">
-        <label>推し<select id="ev-vtuber" required></select></label>
-        <label>タイトル<input id="ev-title" type="text" maxlength="100" required pattern=".*\S.*" placeholder="例: 誕生日配信" autocomplete="off"></label>
+        <label>推し<span class="req" aria-hidden="true">＊</span><select id="ev-vtuber" required></select></label>
+        <label>タイトル<span class="req" aria-hidden="true">＊</span><input id="ev-title" type="text" maxlength="100" required pattern=".*\S.*" placeholder="例: 誕生日配信" autocomplete="off"></label>
         <label class="countdown-check ev-allday"><input type="checkbox" id="ev-allday"> 終日</label>
-        <div class="ev-label">開始
+        <div class="ev-label">開始<span class="req" aria-hidden="true">＊</span>
           <span class="ev-dt"><input id="ev-date" type="date" required aria-label="開始日"><input id="ev-time" class="ev-time-input" type="time" aria-label="開始時刻"></span>
         </div>
-        <div class="ev-label">終了 <small>(なくてもOK)</small>
+        <div class="ev-label">終了
           <span class="ev-dt"><input id="ev-end-date" type="date" aria-label="終了日"><input id="ev-end-time" class="ev-time-input" type="time" aria-label="終了時刻"></span>
         </div>
-        <label>リンク <small>(なくてもOK)</small><input id="ev-url" type="url" maxlength="2000" placeholder="https://… (待機所・販売ページなど)" autocomplete="off" spellcheck="false"></label>
-        <label>メモ <small>(なくてもOK)</small><textarea id="ev-memo" rows="2" maxlength="1000"></textarea></label>
+        <label>リンク<input id="ev-url" type="url" maxlength="2000" placeholder="https://… (待機所・販売ページなど)" autocomplete="off" spellcheck="false"></label>
+        <label>メモ<textarea id="ev-memo" rows="2" maxlength="1000"></textarea></label>
       </div>
       <div class="dlg-buttons">
         <button type="button" id="ev-delete" class="danger" hidden>削除</button>
