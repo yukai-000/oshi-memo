@@ -92,6 +92,14 @@ function fail(e) {
 // id は前のお知らせより大きい数字にすること (見たかどうかの判定に使う)。
 const NEWS = [
   {
+    id: 9,
+    date: "2026/10/19",
+    items: [
+      "アプリの名前を「Oshi Memo」に変更しました。",
+      "カレンダー機能を追加しました。上のバーの「📅 カレンダー」から、誕生日・記念日の閲覧と予定の登録ができます。グッズ販売やライブ情報などの登録にご活用ください。\nまた、推しのページにここで登録した予定が表示されるようになりました。\n予定がある当日は、画面上部のお知らせにも表示されます。",
+    ],
+  },
+  {
     id: 8,
     date: "2026/10/13",
     items: [
@@ -500,9 +508,10 @@ function birthdayBannerHtml() {
   // もうすぐ記念日 (カウントダウン ON の日付の項目。近い順)
   const soon = state.vtubers.flatMap((v) => upcomingAnniversaries(v).map((x) => ({ v, ...x })))
     .sort((a, b) => a.cd.days - b.cd.days);
-  // 今日の予定 (時刻の早い順。時刻なしが先)
-  const todays = state.events.filter((e) => e.date === ymd(todayDate()))
-    .sort((a, b) => a.time.localeCompare(b.time));
+  // 今日の予定 (期間の途中の日も入れる。終日が先、あとは時刻の早い順)
+  const tkey = ymd(todayDate());
+  const todays = state.events.filter((e) => eventCovers(e, tkey))
+    .sort((a, b) => eventSortKey(a, tkey).localeCompare(eventSortKey(b, tkey)));
   if (!bdays.length && !soon.length && !annivs.length && !todays.length) return "";
   const hasAnniv = bdays.length || soon.length || annivs.length;
   // 左の列: 誕生日・記念日 / 右の列: 今日の予定 (どちらか片方だけのときは 1 列)
@@ -550,7 +559,7 @@ function birthdayBannerHtml() {
           <li><button class="bday-item" data-open-cal>
             ${v ? avatarHtml(v, "avatar small") : ""}
             <span class="bday-name">${v ? esc(titleOf(v)) : "(削除した推し)"}</span>
-            ${e.time ? `<span class="bday-left">${e.time}</span>` : ""}
+            <span class="bday-left">${eventWhen(e)}</span>
             <span class="bday-date ev-title">${esc(e.title)}</span>
           </button></li>`;
         }).join("")}
@@ -724,13 +733,15 @@ function renderDetail() {
 
   // 予定の行 (今日から先の予定を近い順に 3 件まで。押すとその日のカレンダーへ)
   const todayKey = ymd(todayDate());
-  const nextEvents = state.events.filter((e) => e.vtuberId === v.id && e.date >= todayKey)
-    .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time)).slice(0, 3);
+  const nextEvents = state.events.filter((e) => e.vtuberId === v.id && eventEnd(e) >= todayKey) // 期間中の予定も出す
+    .sort((a, b) => a.date.localeCompare(b.date) || eventSortKey(a, a.date).localeCompare(eventSortKey(b, b.date))).slice(0, 3);
   const eventRow = `<dt>予定</dt><dd class="oshi-events">${nextEvents.map((e) => {
-    const d = fromYmd(e.date);
-    return `<button type="button" class="cal-item" data-cal-day="${e.date}" title="押すとカレンダーを開く">` +
-      `<span class="cal-icon">📌</span><span>${d.getMonth() + 1}/${d.getDate()} (${WEEK[d.getDay()]})</span>` +
-      (e.time ? `<span class="cal-time">${e.time}</span>` : "") + `<span class="cal-what">${esc(e.title)}</span></button>`;
+    // 日付 (期間なら「10/17 (土)〜10/19 (月)」) と時刻
+    const day = e.endDate ? `${md(e.date, true)}〜${md(e.endDate, true)}` : md(e.date, true);
+    const time = e.allDay ? "" : e.time + (e.endTime ? `〜${e.endTime}` : "");
+    return `<button type="button" class="cal-item" data-cal-day="${e.date >= todayKey ? e.date : todayKey}" title="押すとカレンダーを開く">` +
+      `<span class="cal-icon">📌</span><span>${day}</span>` +
+      (time ? `<span class="cal-time">${time}</span>` : "") + `<span class="cal-what">${esc(e.title)}</span></button>`;
   }).join("") || `<span class="none">予定はありません</span>`}` +
     `<button type="button" id="btn-oshi-event" class="add-event-btn">＋ 予定を追加</button></dd>`;
 
@@ -1902,13 +1913,37 @@ function cleanEvents(list) {
   return (Array.isArray(list) ? list : [])
     .filter((e) => e && typeof e.id === "string" && /^[A-Za-z0-9]{1,40}$/.test(e.id) &&
       typeof e.vtuberId === "string" && isYmd(e.date) && typeof e.title === "string")
-    .map((e) => ({
-      id: e.id, vtuberId: e.vtuberId, date: e.date,
-      time: isTime(e.time) ? e.time : "",
-      title: e.title.slice(0, 100),
-      memo: typeof e.memo === "string" ? e.memo.slice(0, 1000) : "",
-    }));
+    .map((e) => {
+      // 終日か (前の形の予定には allDay が無いので、時刻が無ければ終日にする)
+      const allDay = typeof e.allDay === "boolean" ? e.allDay : !isTime(e.time);
+      return {
+        id: e.id, vtuberId: e.vtuberId, date: e.date,
+        endDate: isYmd(e.endDate) && e.endDate > e.date ? e.endDate : "", // 終了日 (1 日だけの予定は "")
+        allDay,
+        time: !allDay && isTime(e.time) ? e.time : "",            // 開始時刻
+        endTime: !allDay && isTime(e.endTime) ? e.endTime : "",   // 終了時刻 (なくても OK)
+        title: e.title.slice(0, 100),
+        memo: typeof e.memo === "string" ? e.memo.slice(0, 1000) : "",
+      };
+    });
 }
+
+// その日 (「2026-10-25」の形) が予定の期間に入っているか
+const eventCovers = (ev, key) => key >= ev.date && key <= (ev.endDate || ev.date);
+// 予定の最後の日
+const eventEnd = (ev) => ev.endDate || ev.date;
+// 「10/17」の形 (曜日つきなら「10/17 (土)」)
+const md = (key, week) => { const d = fromYmd(key); return `${d.getMonth() + 1}/${d.getDate()}` + (week ? ` (${WEEK[d.getDay()]})` : ""); };
+// 予定の日時の表示
+//  - 1 日だけ: 「終日」「18:00」「18:00〜21:00」
+//  - 期間: 「10/17〜10/19」「10/17 18:00〜10/19 21:00」
+function eventWhen(ev) {
+  if (!ev.endDate) return ev.allDay ? "終日" : ev.time + (ev.endTime ? `〜${ev.endTime}` : "");
+  if (ev.allDay) return `${md(ev.date)}〜${md(ev.endDate)}`;
+  return `${md(ev.date)} ${ev.time}〜${md(ev.endDate)}${ev.endTime ? ` ${ev.endTime}` : ""}`;
+}
+// 同じ日の予定の並べ方: 終日 (と前の日から続いている予定) が先、あとは開始時刻の早い順
+const eventSortKey = (ev, key) => (ev.allDay || ev.date !== key ? "" : ev.time);
 
 // その日に表示するもの [{kind: "bday" | "anniv" | "event", v, text, time, ev}]
 function calendarItems(date) {
@@ -1930,7 +1965,7 @@ function calendarItems(date) {
   // 登録した予定
   const key = ymd(date);
   for (const ev of state.events) {
-    if (ev.date === key) items.push({ kind: "event", v: state.vtubers.find((x) => x.id === ev.vtuberId), ev, time: ev.time, text: ev.title });
+    if (eventCovers(ev, key)) items.push({ kind: "event", v: state.vtubers.find((x) => x.id === ev.vtuberId), ev, time: eventSortKey(ev, key), text: ev.title });
   }
   // 誕生日 → 記念日 → 予定 (予定は時刻の早い順。時刻なしが先)
   const order = { bday: 0, anniv: 1, event: 2 };
@@ -2004,7 +2039,7 @@ function renderCalendar() {
   const list = calendarItems(sd).map((x) => {
     const name = x.v ? esc(titleOf(x.v)) : "(削除した推し)";
     const head = `<span class="cal-icon">${CAL_ICON[x.kind]}</span>` +
-      (x.time ? `<span class="cal-time">${x.time}</span>` : "") +
+      (x.kind === "event" ? `<span class="cal-time">${eventWhen(x.ev)}</span>` : "") +
       `<span class="cal-who">${name}</span><span class="cal-what">${esc(x.text)}</span>`;
     // 予定は押すと編集、誕生日・記念日は押すとその推しのページへ
     return x.kind === "event"
@@ -2056,7 +2091,11 @@ function openEventDialog(ev, date, vtuberId) {
     // 推しを削除した予定は「(削除した推し)」のまま残す
     (ev && !list.some((v) => v.id === ev.vtuberId) ? `<option value="${esc(ev.vtuberId)}" selected>(削除した推し)</option>` : "");
   $("#ev-date").value = ev ? ev.date : date;
+  $("#ev-end-date").value = ev ? ev.endDate : "";
+  $("#ev-allday").checked = ev ? ev.allDay : false;
   $("#ev-time").value = ev ? ev.time : "";
+  $("#ev-end-time").value = ev ? ev.endTime : "";
+  checkEventForm();
   $("#ev-title").value = ev ? ev.title : "";
   $("#ev-memo").value = ev ? ev.memo : "";
   $("#ev-delete").hidden = !ev;
@@ -2071,11 +2110,15 @@ $("#dlg-event").addEventListener("close", () => {
     id: state.editingEventId || newId(),
     vtuberId: $("#ev-vtuber").value,
     date: $("#ev-date").value,
-    time: isTime($("#ev-time").value) ? $("#ev-time").value : "",
+    endDate: $("#ev-end-date").value,
+    allDay: $("#ev-allday").checked,
+    time: $("#ev-time").value,
+    endTime: $("#ev-end-time").value,
     title: $("#ev-title").value.trim().slice(0, 100),
     memo: $("#ev-memo").value.trim().slice(0, 1000),
   };
   if (!isYmd(ev.date) || !ev.title) return toast("日付と内容を入れてください。保存しませんでした");
+  Object.assign(ev, cleanEvents([ev])[0]); // 終日なら時刻を消す・終了日が開始日と同じなら消す など、形をそろえる
   state.lastEventVtuber = ev.vtuberId;
   // 保存した日を選んだ状態にする (別の月の日付にしたときは、その月に移る)
   const d = fromYmd(ev.date);
@@ -2083,6 +2126,21 @@ $("#dlg-event").addEventListener("close", () => {
   saveEvents([...state.events.filter((e) => e.id !== ev.id), ev]);
   toast(state.editingEventId ? "予定を保存しました" : "予定を追加しました");
 });
+
+// 入力のチェックと、終日の切り替え
+//  - 終日: 時刻の欄を隠す。終日でないときは開始時刻が必要
+//  - 終了日は開始日より前にできない。同じ日なら終了時刻は開始時刻より後
+function checkEventForm() {
+  const all = $("#ev-allday").checked, s = $("#ev-date").value, e = $("#ev-end-date").value;
+  document.querySelectorAll(".ev-time-input").forEach((t) => (t.hidden = all));
+  $("#ev-time").required = !all;
+  $("#ev-end-date").min = s;
+  $("#ev-end-date").setCustomValidity(e && s && e < s ? "終了日は開始日と同じか、それより後にしてください" : "");
+  const st = $("#ev-time").value, et = $("#ev-end-time").value;
+  $("#ev-end-time").setCustomValidity(!all && st && et && (!e || e === s) && et <= st ? "終了時刻は開始時刻より後にしてください" : "");
+}
+["#ev-allday", "#ev-date", "#ev-end-date", "#ev-time", "#ev-end-time"].forEach((sel) => $(sel).addEventListener("input", checkEventForm));
+$("#ev-allday").addEventListener("change", checkEventForm);
 
 // 削除
 $("#ev-delete").onclick = async () => {

@@ -20,7 +20,7 @@
   <script src="theme.js?v=20261019-1"></script>
   <!-- ?v=… は「バージョン番号」。アプリを更新したら数字を変えると、
        スマホなどに残っている古いファイルではなく、新しいファイルが必ず読み込まれる -->
-  <link rel="stylesheet" href="style.css?v=20261019-10">
+  <link rel="stylesheet" href="style.css?v=20261019-13">
 </head>
 <body>
   <!-- 読み込み中の表示 -->
@@ -120,8 +120,13 @@
       <h2 id="event-title" tabindex="-1" autofocus>予定を追加</h2>
       <div class="ev-form">
         <label>推し<select id="ev-vtuber" required></select></label>
-        <label>日付<input id="ev-date" type="date" required></label>
-        <label>時刻 <small>(なくてもOK)</small><input id="ev-time" type="time"></label>
+        <label class="countdown-check ev-allday"><input type="checkbox" id="ev-allday"> 終日</label>
+        <div class="ev-label">開始
+          <span class="ev-dt"><input id="ev-date" type="date" required aria-label="開始日"><input id="ev-time" class="ev-time-input" type="time" aria-label="開始時刻"></span>
+        </div>
+        <div class="ev-label">終了 <small>(なくてもOK)</small>
+          <span class="ev-dt"><input id="ev-end-date" type="date" aria-label="終了日"><input id="ev-end-time" class="ev-time-input" type="time" aria-label="終了時刻"></span>
+        </div>
         <label>内容<input id="ev-title" type="text" maxlength="100" required pattern=".*\S.*" placeholder="例: 誕生日配信" autocomplete="off"></label>
         <label>メモ <small>(なくてもOK)</small><textarea id="ev-memo" rows="2" maxlength="1000"></textarea></label>
       </div>
@@ -227,6 +232,6 @@
   <!-- type="module" にすると import が使える -->
   <!-- zip の書き出し・読み込み用ライブラリ (JSZip, MIT ライセンス) -->
   <script src="lib/jszip.min.js"></script>
-  <script type="module" src="app.js?v=20261019-6"></script>
+  <script type="module" src="app.js?v=20261019-8"></script>
 </body>
 </html>

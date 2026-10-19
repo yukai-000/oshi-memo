@@ -1131,3 +1131,15 @@ h1.app-title { font-family: "Caveat", var(--hand), cursive; font-weight: 600; le
 @media (max-width: 340px) { .topbar h1.app-title { font-size: 24px; } }
 /* 上のバーが狭いときは、ボタンではなくタイトルのほうを縮めて「…」にする */
 .topbar-right { flex-shrink: 0; }
+
+/* お知らせの文章の改行 (\n) をそのまま表示する */
+#news-body li { white-space: pre-line; }
+/* スマホ (幅 480px 以下) では「ライト」「ダーク」の文字を省いて ☀ / 🌙 だけにする (タイトルが省略されないように) */
+@media (max-width: 480px) { #btn-theme .theme-label { display: none; } }
+/* 予定の「開始」「終了」: 日付と時刻を横に並べる (終日のときは時刻を隠す) */
+.ev-label { margin-bottom: 14px; font-family: var(--hand); font-size: 14px; color: var(--muted); }
+.ev-dt { display: flex; gap: 10px; }
+.ev-form .ev-dt input[type=date] { flex: 1 1 60%; min-width: 0; }
+.ev-form .ev-dt input[type=time] { flex: 1 1 40%; min-width: 0; }
+.ev-form .ev-dt input[hidden] { display: none; }
+dialog label.ev-allday { margin: 0 0 12px; }
