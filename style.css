@@ -1108,7 +1108,7 @@ dialog label.tpl-label-text { display: block; margin: 10px 0 0; }
 .cal-memo { flex-basis: 100%; padding-left: 1.8em; font-size: 13px; color: var(--muted); white-space: pre-wrap; }
 /* スマホではマスを少し小さく */
 @media (max-width: 480px) {
-  .cal { padding-left: 10px; padding-right: 10px; }
+  .card.cal { padding-left: 10px; padding-right: 10px; } /* (「.cal」だけだと配信スケジュールのアイコン (class="sc-av cal") にも効いてしまうので .card を付ける) */
   .cal-head { gap: 4px; }
   .cal-head h2 { font-size: 19px; min-width: 6.5em; }
   /* スマホ: アイコンの下に内容を小さく出す */
