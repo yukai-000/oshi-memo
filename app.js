@@ -561,7 +561,7 @@ function birthdayBannerHtml() {
             <span class="bday-name">${v ? esc(titleOf(v)) : "(削除した推し)"}</span>
             <span class="bday-left">${eventWhen(e)}</span>
             <span class="bday-date ev-title">${esc(e.title)}</span>
-          </button></li>`;
+          </button>${eventLinkHtml(e)}</li>`;
         }).join("")}
         </ul>
       </div>` : ""}
@@ -739,9 +739,9 @@ function renderDetail() {
     // 日付 (期間なら「10/17 (土)〜10/19 (月)」) と時刻
     const day = e.endDate ? `${md(e.date, true)}〜${md(e.endDate, true)}` : md(e.date, true);
     const time = e.allDay ? "" : e.time + (e.endTime ? `〜${e.endTime}` : "");
-    return `<button type="button" class="cal-item" data-cal-day="${e.date >= todayKey ? e.date : todayKey}" title="押すとカレンダーを開く">` +
+    return `<span class="cal-li"><button type="button" class="cal-item" data-cal-day="${e.date >= todayKey ? e.date : todayKey}" title="押すとカレンダーを開く">` +
       `<span class="cal-icon">📌</span><span>${day}</span>` +
-      (time ? `<span class="cal-time">${time}</span>` : "") + `<span class="cal-what">${esc(e.title)}</span></button>`;
+      (time ? `<span class="cal-time">${time}</span>` : "") + `<span class="cal-what">${esc(e.title)}</span></button>${eventLinkHtml(e)}</span>`;
   }).join("") || `<span class="none">予定はありません</span>`}` +
     `<button type="button" id="btn-oshi-event" class="add-event-btn">＋ 予定を追加</button></dd>`;
 
@@ -1924,6 +1924,7 @@ function cleanEvents(list) {
         endTime: !allDay && isTime(e.endTime) ? e.endTime : "",   // 終了時刻 (なくても OK)
         title: e.title.slice(0, 100),
         memo: typeof e.memo === "string" ? e.memo.slice(0, 1000) : "",
+        url: typeof e.url === "string" && e.url.length <= 2000 && safeUrl(e.url) ? e.url : "", // リンク (http・https だけ)
       };
     });
 }
@@ -1932,6 +1933,8 @@ function cleanEvents(list) {
 const eventCovers = (ev, key) => key >= ev.date && key <= (ev.endDate || ev.date);
 // 予定の最後の日
 const eventEnd = (ev) => ev.endDate || ev.date;
+// 予定に登録したリンクを開くボタン (リンクが無ければ空)。押すと新しいタブで開く
+const eventLinkHtml = (ev) => (ev.url ? `<a class="ev-link" href="${esc(ev.url)}" target="_blank" rel="noopener noreferrer" title="${esc(ev.url)}">🔗 開く</a>` : "");
 // 「10/17」の形 (曜日つきなら「10/17 (土)」)
 const md = (key, week) => { const d = fromYmd(key); return `${d.getMonth() + 1}/${d.getDate()}` + (week ? ` (${WEEK[d.getDay()]})` : ""); };
 // 予定の日時の表示
@@ -2089,8 +2092,8 @@ function renderCalendar() {
       `<span class="cal-who">${name}</span><span class="cal-what">${esc(x.text)}</span>`;
     // 予定は押すと編集、誕生日・記念日は押すとその推しのページへ
     return x.kind === "event"
-      ? `<li><button type="button" class="cal-item" data-event="${x.ev.id}" title="押すと編集">${head}` +
-        (x.ev.memo ? `<span class="cal-memo">${esc(x.ev.memo)}</span>` : "") + `</button></li>`
+      ? `<li class="cal-li"><button type="button" class="cal-item" data-event="${x.ev.id}" title="押すと編集">${head}` +
+        (x.ev.memo ? `<span class="cal-memo">${esc(x.ev.memo)}</span>` : "") + `</button>${eventLinkHtml(x.ev)}</li>`
       : `<li><button type="button" class="cal-item" data-select="${x.v.id}" title="押すと推しのページへ">${head}</button></li>`;
   }).join("");
   main.innerHTML = `
@@ -2143,6 +2146,7 @@ function openEventDialog(ev, date, vtuberId) {
   $("#ev-end-time").value = ev ? ev.endTime : "";
   checkEventForm();
   $("#ev-title").value = ev ? ev.title : "";
+  $("#ev-url").value = ev ? ev.url : "";
   $("#ev-memo").value = ev ? ev.memo : "";
   $("#ev-delete").hidden = !ev;
   d.returnValue = "";
@@ -2162,6 +2166,7 @@ $("#dlg-event").addEventListener("close", () => {
     endTime: $("#ev-end-time").value,
     title: $("#ev-title").value.trim().slice(0, 100),
     memo: $("#ev-memo").value.trim().slice(0, 1000),
+    url: $("#ev-url").value.trim(),
   };
   if (!isYmd(ev.date) || !ev.title) return toast("タイトルと日付を入れてください。保存しませんでした");
   Object.assign(ev, cleanEvents([ev])[0]); // 終日なら時刻を消す・終了日が開始日と同じなら消す など、形をそろえる
@@ -2184,8 +2189,11 @@ function checkEventForm() {
   $("#ev-end-date").setCustomValidity(e && s && e < s ? "終了日は開始日と同じか、それより後にしてください" : "");
   const st = $("#ev-time").value, et = $("#ev-end-time").value;
   $("#ev-end-time").setCustomValidity(!all && st && et && (!e || e === s) && et <= st ? "終了時刻は開始時刻より後にしてください" : "");
+  // リンクは http:// か https:// で始まるものだけ
+  const u = $("#ev-url").value.trim();
+  $("#ev-url").setCustomValidity(u && !safeUrl(u) ? "https:// で始まる URL を入れてください" : "");
 }
-["#ev-allday", "#ev-date", "#ev-end-date", "#ev-time", "#ev-end-time"].forEach((sel) => $(sel).addEventListener("input", checkEventForm));
+["#ev-allday", "#ev-date", "#ev-end-date", "#ev-time", "#ev-end-time", "#ev-url"].forEach((sel) => $(sel).addEventListener("input", checkEventForm));
 $("#ev-allday").addEventListener("change", checkEventForm);
 
 // 削除

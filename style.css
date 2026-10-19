@@ -1169,3 +1169,23 @@ h1.app-title { font-family: "Caveat", var(--hand), cursive; font-weight: 600; le
 .ev-form .ev-dt input[type=time] { flex: 1 1 40%; min-width: 0; }
 .ev-form .ev-dt input[hidden] { display: none; }
 dialog label.ev-allday { margin: 0 0 12px; }
+
+/* 予定のリンク: 予定の横の「🔗 開く」 */
+.cal-li { display: flex; align-items: center; gap: 6px; }
+.cal-li > .cal-item { flex: 1; min-width: 0; }
+.oshi-events .cal-li > .cal-item { flex: 0 1 auto; }
+.ev-link {
+  flex-shrink: 0;
+  font-size: 13px;
+  padding: 2px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.ev-link:hover { background: var(--grid); }
+.bday-banner .ev-link { color: #3b3530; border-color: rgba(59, 53, 48, .35); margin-left: 40px; }
+.bday-banner .banner-events li { display: flex; flex-direction: column; align-items: flex-start; }
+.ev-form input[type=url] { width: 100%; padding: 6px 2px; border: none; border-bottom: 1.5px solid var(--line); background: transparent; outline: none; color: var(--ink); }
+.ev-form input[type=url]:focus { border-bottom-color: var(--pink); }
