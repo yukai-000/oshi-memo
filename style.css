@@ -1016,7 +1016,7 @@ dialog label.tpl-label-text { display: block; margin: 10px 0 0; }
 .cal-grid { display: flex; flex-direction: column; gap: 2px; }
 /* 曜日の見出しの行 と 1 週間の行 (7 列。1 段目が日付、2〜4 段目が予定、5 段目が「+2」) */
 .cal-head-row, .cal-row { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); column-gap: 2px; }
-.cal-row { grid-template-rows: 28px auto auto auto minmax(14px, 1fr); min-height: 92px; }
+.cal-row { grid-template-rows: 36px auto auto auto minmax(14px, 1fr); min-height: 96px; } /* 1 段目は今日の丸が入る高さ */
 .cal-row > .cal-day { grid-row: 1 / -1; }       /* マスは行の高さいっぱい (押すとその日を選ぶ) */
 /* マスの上に重ねる予定 (押すと下のマスを押したことにする) */
 .cal-row > .cal-ev, .cal-row > .cal-bar, .cal-row > .cal-more { position: relative; z-index: 1; pointer-events: none; min-width: 0; }
@@ -1113,7 +1113,7 @@ dialog label.tpl-label-text { display: block; margin: 10px 0 0; }
   .cal-head h2 { font-size: 19px; min-width: 6.5em; }
   /* スマホ: アイコンの下に内容を小さく出す */
   .cal-head-row, .cal-row { column-gap: 1px; }
-  .cal-row { grid-template-rows: 26px auto auto auto minmax(12px, 1fr); min-height: 76px; }
+  .cal-row { grid-template-rows: 33px auto auto auto minmax(12px, 1fr); min-height: 80px; }
   .cal-row > .cal-ev { margin: 1px 1px; }
   .cal-day { padding: 3px 1px 2px; gap: 2px; }
   .cal-bar { height: 20px; gap: 3px; padding: 0 3px 0 2px; }
