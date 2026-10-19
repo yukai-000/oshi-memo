@@ -725,6 +725,15 @@ dialog label.countdown-check {
 .date-since { font-size: 13px; color: var(--muted); }
 /* お知らせの 2 つ目の見出し (今日は記念日) */
 .bday-banner h3.banner-sub { margin-top: 10px; }
+/* 誕生日・記念日と今日の予定が両方あるときは 2 列 (スマホでは上下に並べる) */
+.bday-banner.two { display: grid; grid-template-columns: 1fr 1fr; gap: 0 22px; }
+.bday-banner.two .banner-events { border-left: 1.5px dashed rgba(59, 53, 48, .3); padding-left: 18px; }
+.bday-banner .banner-events ul { flex-direction: column; }
+.bday-banner .ev-title { opacity: .9; font-size: 13px; }
+@media (max-width: 600px) {
+  .bday-banner.two { grid-template-columns: 1fr; }
+  .bday-banner.two .banner-events { border-left: none; padding-left: 0; border-top: 1.5px dashed rgba(59, 53, 48, .3); padding-top: 8px; margin-top: 8px; }
+}
 /* お知らせ (黄色い付箋) の「今日！」は、夜のノートでも読みやすい濃い赤にする */
 .bday-banner .bday-left.today { color: #b9544a; }
 
@@ -928,6 +937,12 @@ a.button { color: var(--ink); text-decoration: none; display: inline-block; }
   #btn-theme { padding: 4px 4px; } /* 🌙 は ☀ より少し幅があるので、はみ出さないように */
 }
 .manual-page .topbar-right { margin-left: auto; }
+/* スマホでは上のバーのボタンの左右の余白を詰める (📅 カレンダーを足しても 1 行に収まるように) */
+@media (max-width: 720px) {
+  .topbar-right { gap: 0; }
+  .topbar-right button.ghost { padding-left: 6px; padding-right: 6px; }
+  #btn-cal { font-size: 17px; line-height: 1; }
+}
 
 /* ---------- 作者の表示 (画面の一番下) ---------- */
 .credit {
@@ -984,3 +999,121 @@ dialog label.tpl-label-text { display: block; margin: 10px 0 0; }
 
 /* 推しの追加・編集を開いたときは見出しを選んだ状態にする (枠線は出さない) */
 #dlg-vtuber-title:focus, #dlg-fields-title:focus { outline: none; }
+
+/* ---------- カレンダー (誕生日・記念日・予定) ---------- */
+/* 上の行: ◀ 2026年10月 ▶ [今日] */
+.cal-head { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.cal-head h2 { margin: 0; min-width: 7.5em; text-align: center; font-family: var(--hand); }
+.cal-today-btn { margin-left: auto; font-size: 13px; padding: 2px 12px; }
+/* 7 列のマス目 */
+.cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; }
+.cal-marks { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.cal-week { text-align: center; font-size: 12px; color: var(--muted); padding: 2px 0 4px; }
+.cal-week.sun, .cal-day.sun .cal-num { color: #d0556a; }
+.cal-week.sat, .cal-day.sat .cal-num { color: #4a7fb5; }
+.cal-day {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 3px;
+  min-height: 92px;
+  padding: 4px 4px 3px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: none;
+  min-width: 0;              /* 長い内容でマスが広がらないように */
+  text-align: left;
+}
+.cal-day:hover { background: var(--grid); transform: none; }
+.cal-day.other { opacity: .35; }                 /* 前後の月の日 */
+.cal-num { align-self: center; font-size: 14px; line-height: 1.4; }
+.cal-day.today .cal-num {                        /* 今日: 丸で囲む */
+  background: var(--pink);
+  color: #fff;
+  border-radius: 50%;
+  width: 1.9em; height: 1.9em;
+  display: flex; align-items: center; justify-content: center;
+}
+.cal-day.sel { border-color: var(--ink); background: var(--grid); } /* 選んでいる日 */
+/* マスの中の 1 件: アイコン + 内容 */
+.cal-ev { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.cal-av { position: relative; flex-shrink: 0; line-height: 0; }
+.cal-avatar {
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1.5px solid var(--photo);
+}
+.cal-avatar.no-icon {
+  display: flex; align-items: center; justify-content: center;
+  background: var(--tape-pink);
+  font-family: var(--hand); font-weight: 600; font-size: 12px; line-height: 1;
+}
+/* アイコンの右上の 🎂🎉📌 */
+.cal-badge { position: absolute; top: -5px; right: -6px; font-size: 11px; line-height: 1; }
+.cal-ev-text {
+  font-size: 11px;
+  line-height: 1.3;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;  /* 入りきらない内容は「…」 */
+}
+.cal-more { font-size: 11px; color: var(--muted); text-align: right; }
+.cal-legend { margin: 10px 0 0; }
+/* 下の一覧 */
+.cal-list h3 { margin-top: 0; font-family: var(--hand); }
+.cal-list ul { list-style: none; padding: 0; margin: 0 0 14px; }
+.cal-list li + li { border-top: 1px dashed var(--line); }
+.cal-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  width: 100%;
+  text-align: left;
+  border: none;
+  border-radius: 3px;
+  padding: 10px 4px;
+  background: none;
+}
+.cal-item:hover { background: var(--grid); transform: none; }
+.cal-time { font-family: ui-monospace, "SF Mono", Consolas, monospace; font-size: 14px; }
+.cal-who { font-weight: 700; }
+.cal-memo { flex-basis: 100%; padding-left: 1.8em; font-size: 13px; color: var(--muted); white-space: pre-wrap; }
+/* スマホではマスを少し小さく */
+@media (max-width: 480px) {
+  .cal { padding-left: 10px; padding-right: 10px; }
+  .cal-head { gap: 4px; }
+  .cal-head h2 { font-size: 19px; min-width: 6.5em; }
+  /* スマホ: アイコンの下に内容を小さく出す */
+  .cal-grid { gap: 1px; }
+  .cal-day { min-height: 76px; padding: 3px 1px 2px; gap: 2px; }
+  .cal-num { font-size: 13px; }
+  .cal-ev { flex-direction: column; gap: 0; }
+  .cal-avatar { width: 22px; height: 22px; }
+  .cal-badge { font-size: 10px; top: -4px; right: -7px; }
+  .cal-ev-text { font-size: 9px; max-width: 100%; letter-spacing: -.02em; }
+  .cal-more { font-size: 10px; text-align: center; }
+}
+
+/* 予定の追加・編集ダイアログ */
+.ev-form select, .ev-form input[type=date], .ev-form input[type=time] { display: block; width: 100%; }
+.ev-form input[type=date], .ev-form input[type=time] {
+  font: inherit;
+  color: var(--ink);
+  background: transparent;
+  border: none;
+  border-bottom: 1.5px solid var(--line);
+  padding: 4px 2px;
+}
+.ev-form input[type=text], .ev-form select { color: var(--ink); font-family: var(--body); }
+#ev-delete { margin-right: auto; }
+#event-title:focus { outline: none; }
+
+/* 推しのページの「予定」の行 (近い予定を縦に並べる) */
+.fields dd.oshi-events { flex-direction: column; align-items: flex-start; gap: 0; }
+.oshi-events .cal-item { width: auto; padding: 4px 4px; }
+.add-event-btn { font-size: 13px; padding: 2px 12px; margin-top: 6px; }
+/* カレンダーから来たときの「← カレンダーに戻る」 */
+.back-cal { margin: 0 0 18px; font-size: 14px; padding: 4px 14px; }

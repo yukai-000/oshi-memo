@@ -53,6 +53,12 @@ const state = {
   folder: null,      // 選択中のフォルダ名
   memoOpenId: null,  // 「メモを開く」で開いている推しの ID
   editingId: null,   // 編集ダイアログで編集中の Vtuber (null なら新規追加)
+  events: [],        // カレンダーの予定 [{id, vtuberId, date: "2026-10-25", time: "20:00" か "", title, memo}]
+  view: null,        // "calendar" ならカレンダーを表示中
+  cal: null,         // カレンダーで表示中の月と選んだ日 {y, m, sel: "2026-10-25"}
+  editingEventId: null, // 編集中の予定 (null なら新しい予定)
+  lastEventVtuber: null, // 最後に予定を登録した推し (次に追加するとき最初に選んでおく)
+  backToCal: null,   // カレンダーから推しのページに来たとき、戻る先の月と日 {y, m, sel}
 };
 const thumbUrls = new Map();    // サムネイル画像の表示用 URL (作り直さないよう保存)
 
@@ -215,6 +221,7 @@ function applySettings(settings) {
   state.dateFields = settings.dateFields || DEFAULT_DATE_FIELDS;
   state.postTemplates = templatesOf(settings);
   state.lastBackupAt = settings.lastBackupAt || 0;
+  state.events = cleanEvents(settings.events);
 }
 
 // Vtuber の一覧を読み直す
@@ -493,9 +500,15 @@ function birthdayBannerHtml() {
   // もうすぐ記念日 (カウントダウン ON の日付の項目。近い順)
   const soon = state.vtubers.flatMap((v) => upcomingAnniversaries(v).map((x) => ({ v, ...x })))
     .sort((a, b) => a.cd.days - b.cd.days);
-  if (!bdays.length && !soon.length && !annivs.length) return "";
+  // 今日の予定 (時刻の早い順。時刻なしが先)
+  const todays = state.events.filter((e) => e.date === ymd(todayDate()))
+    .sort((a, b) => a.time.localeCompare(b.time));
+  if (!bdays.length && !soon.length && !annivs.length && !todays.length) return "";
+  const hasAnniv = bdays.length || soon.length || annivs.length;
+  // 左の列: 誕生日・記念日 / 右の列: 今日の予定 (どちらか片方だけのときは 1 列)
   return `
-    <section class="bday-banner">
+    <section class="bday-banner ${hasAnniv && todays.length ? "two" : ""}">
+      ${hasAnniv ? `<div class="banner-col">` : ""}
       ${bdays.length ? `
       <h3>🎂 もうすぐ誕生日</h3>
       <ul>${bdays.map(({ v, info }) => `
@@ -526,6 +539,23 @@ function birthdayBannerHtml() {
           <span class="bday-left today">${info.years > 0 ? `${info.years}周年` : "今日！"}</span>
         </button></li>`).join("")}
       </ul>` : ""}
+      ${hasAnniv ? `</div>` : ""}
+      ${todays.length ? `
+      <div class="banner-col banner-events">
+        <h3>📌 今日の予定</h3>
+        <ul>${todays.map((e) => {
+          const v = state.vtubers.find((x) => x.id === e.vtuberId);
+          // 押すとカレンダーの今日を開く
+          return `
+          <li><button class="bday-item" data-open-cal>
+            ${v ? avatarHtml(v, "avatar small") : ""}
+            <span class="bday-name">${v ? esc(titleOf(v)) : "(削除した推し)"}</span>
+            ${e.time ? `<span class="bday-left">${e.time}</span>` : ""}
+            <span class="bday-date ev-title">${esc(e.title)}</span>
+          </button></li>`;
+        }).join("")}
+        </ul>
+      </div>` : ""}
     </section>`;
 }
 
@@ -622,6 +652,7 @@ function thumbUrl(img) {
 }
 
 function renderDetail() {
+  if (state.view === "calendar") return renderCalendar(); // カレンダーを表示中
   const v = current();
   const main = $("#detail");
   if (!v) {
@@ -691,6 +722,18 @@ function renderDetail() {
       : `<span class="none">未登録</span>`}</dd>`;
   }).join("");
 
+  // 予定の行 (今日から先の予定を近い順に 3 件まで。押すとその日のカレンダーへ)
+  const todayKey = ymd(todayDate());
+  const nextEvents = state.events.filter((e) => e.vtuberId === v.id && e.date >= todayKey)
+    .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time)).slice(0, 3);
+  const eventRow = `<dt>予定</dt><dd class="oshi-events">${nextEvents.map((e) => {
+    const d = fromYmd(e.date);
+    return `<button type="button" class="cal-item" data-cal-day="${e.date}" title="押すとカレンダーを開く">` +
+      `<span class="cal-icon">📌</span><span>${d.getMonth() + 1}/${d.getDate()} (${WEEK[d.getDay()]})</span>` +
+      (e.time ? `<span class="cal-time">${e.time}</span>` : "") + `<span class="cal-what">${esc(e.title)}</span></button>`;
+  }).join("") || `<span class="none">予定はありません</span>`}` +
+    `<button type="button" id="btn-oshi-event" class="add-event-btn">＋ 予定を追加</button></dd>`;
+
   // リンクの行 (押すと新しいタブで開く)
   const links = (v.links || []).filter((l) => safeUrl(l.url));
   const linkRow = `<dt>リンク</dt><dd>${links.length
@@ -726,7 +769,9 @@ function renderDetail() {
       <div class="grid">${thumbs || '<p class="empty">まだ画像がありません</p>'}</div>`;
   }
 
-  main.innerHTML = backupNoticeHtml() + birthdayBannerHtml() + `
+  // カレンダーから来たときは「← カレンダーに戻る」
+  const backBtn = state.backToCal ? `<button type="button" id="btn-back-cal" class="back-cal">← カレンダーに戻る</button>` : "";
+  main.innerHTML = backBtn + backupNoticeHtml() + birthdayBannerHtml() + `
     <section class="card">
       <div class="card-head">
         <h2><span class="marker">${esc(titleOf(v))}</span>
@@ -742,7 +787,7 @@ function renderDetail() {
         ${hasIcon(v) ? `<button id="btn-icon-remove" class="ghost">アイコンを外す</button>` : ""}
         <input id="icon-input" type="file" accept="image/*" hidden>
       </div>
-      <dl class="fields">${rows}${memoRow}${colorRows}${bdayRow}${dateRows}${linkRow}</dl>
+      <dl class="fields">${rows}${memoRow}${colorRows}${bdayRow}${dateRows}${eventRow}${linkRow}</dl>
     </section>
     <section class="card">
       <div class="card-head"><h2>画像</h2><button id="btn-add-folder">＋ フォルダ</button></div>
@@ -778,6 +823,10 @@ function bindDetailEvents(v) {
   }));
 
   $("#btn-edit").onclick = () => openVtuberDialog(v);
+  // 予定: 押すとその日のカレンダー、「＋ 予定を追加」はこの推しを選んだ状態で追加画面を開く
+  document.querySelectorAll("[data-cal-day]").forEach((b) => (b.onclick = () => openCalendar(b.dataset.calDay)));
+  $("#btn-oshi-event").onclick = () => openEventDialog(null, ymd(todayDate()), v.id);
+  if ($("#btn-back-cal")) $("#btn-back-cal").onclick = () => history.back(); // 戻る操作と同じ (下の popstate で戻す)
   // お気に入りの切り替え
   $("#btn-fav").onclick = () => store.updateVtuber(v.id, { favorite: !v.favorite }).then(reload).catch(fail);
   // X の投稿画面を開く
@@ -821,6 +870,8 @@ function bindDetailEvents(v) {
 // お知らせの名前を押すとその Vtuber を開く
 function bindBannerEvents() {
   document.querySelectorAll("[data-select]").forEach((b) => (b.onclick = () => select(b.dataset.select)));
+  // 今日の予定 → カレンダーの今日
+  document.querySelectorAll("[data-open-cal]").forEach((b) => (b.onclick = () => openCalendar()));
   // 「バックアップする」→ 設定画面を開く
   const nb = $("#btn-notice-backup");
   if (nb) nb.onclick = () => $("#btn-fields").click();
@@ -911,6 +962,8 @@ function postWith(v, tpl) {
 // Vtuber の選択・削除
 // ------------------------------------------------------------
 function select(id) {
+  state.view = null; // カレンダーを閉じる
+  state.backToCal = null; // 「カレンダーに戻る」も消す (カレンダーから来たときは、このあとで入れ直す)
   state.selectedId = id;
   const v = current();
   // 最初のフォルダ (例: 通常衣装) を自動で開く
@@ -926,8 +979,11 @@ function select(id) {
 }
 
 async function deleteVtuber(v) {
-  if (!(await askConfirm({ title: `「${titleOf(v)}」を削除しますか？`, body: "登録した内容と、保存した画像がすべて削除されます。元に戻せません。", ok: "削除する", danger: true }))) return;
+  const hasEvents = state.events.some((e) => e.vtuberId === v.id);
+  if (!(await askConfirm({ title: `「${titleOf(v)}」を削除しますか？`, body: `登録した内容と、保存した画像${hasEvents ? "・カレンダーの予定" : ""}がすべて削除されます。元に戻せません。`, ok: "削除する", danger: true }))) return;
   await store.deleteVtuber(v.id);
+  // この推しの予定も消す
+  if (hasEvents) await store.saveSettings({ events: state.events.filter((e) => e.vtuberId !== v.id) });
   select(null);
   await reload();
   toast("削除しました");
@@ -1651,6 +1707,7 @@ function backupData() {
     dateFields: state.dateFields,
     postTemplates: state.postTemplates,
     postTemplate: state.postTemplates.find((t) => t.text.trim())?.text || "", // 前の形 (1 つだけ) も入れておく
+    events: state.events, // カレンダーの予定
     vtubers: state.vtubers.map((v) => {
       const out = { id: v.id };
       BACKUP_KEYS.forEach((k) => v[k] !== undefined && (out[k] = v[k]));
@@ -1763,6 +1820,15 @@ $("#import-input").onchange = async (e) => {
       await store.putVtuber(out);
     }
 
+    // カレンダーの予定: バックアップの予定で上書き (同じ予定は置き換え、ほかの予定は残す)
+    //  (推しが見つからない予定は読み込まない)
+    if (Array.isArray(data.events)) {
+      const ids = new Set((await store.listVtubers()).map((v) => v.id));
+      const incoming = cleanEvents(data.events).filter((e) => ids.has(e.vtuberId));
+      const keep = cleanEvents((await store.getSettings())?.events).filter((e) => !incoming.some((x) => x.id === e.id));
+      await store.saveSettings({ events: [...keep, ...incoming] });
+    }
+
     // 画像 (zip のときだけ)
     let restored = 0;
     if (zip && imageCount) {
@@ -1814,6 +1880,224 @@ async function renderStorageInfo() {
     <li>使っている容量: ${u ? `約 ${mb(u.usage)} MB (使える目安 ${mb(u.quota)} MB)` : "不明"}</li>
     <li>ブラウザによる自動削除の防止: ${state.persisted ? "✅ ON" : "⚠ OFF (ホーム画面に追加すると ON になりやすくなります)"}</li>
     <li>最後のバックアップ: ${state.lastBackupAt ? new Date(state.lastBackupAt).toLocaleDateString("ja-JP") : "まだありません"}</li>`;
+}
+
+// ------------------------------------------------------------
+// カレンダー (誕生日・記念日・予定)
+//  - 上に 1 か月分のカレンダー、下に選んだ日の内容を出す
+//  - 予定は「どの推しの予定か」を選んで登録する
+// ------------------------------------------------------------
+const WEEK = ["日", "月", "火", "水", "木", "金", "土"];
+const CAL_ICON = { bday: "🎂", anniv: "🎉", event: "📌" };
+const pad2 = (n) => String(n).padStart(2, "0");
+// 日付 → 「2026-10-25」の形 (予定の保存とカレンダーのマスの目印に使う)
+const ymd = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const isYmd = (s) => typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s);
+const isTime = (s) => typeof s === "string" && /^\d{2}:\d{2}$/.test(s);
+// 「2026-10-25」→ 日付
+const fromYmd = (s) => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
+
+// 予定の一覧を、正しい形のものだけにそろえる (壊れた行は捨てる)
+function cleanEvents(list) {
+  return (Array.isArray(list) ? list : [])
+    .filter((e) => e && typeof e.id === "string" && /^[A-Za-z0-9]{1,40}$/.test(e.id) &&
+      typeof e.vtuberId === "string" && isYmd(e.date) && typeof e.title === "string")
+    .map((e) => ({
+      id: e.id, vtuberId: e.vtuberId, date: e.date,
+      time: isTime(e.time) ? e.time : "",
+      title: e.title.slice(0, 100),
+      memo: typeof e.memo === "string" ? e.memo.slice(0, 1000) : "",
+    }));
+}
+
+// その日に表示するもの [{kind: "bday" | "anniv" | "event", v, text, time, ev}]
+function calendarItems(date) {
+  const y = date.getFullYear(), m = date.getMonth() + 1, d = date.getDate();
+  // 毎年の日付 (誕生日・記念日) がこの日か (うるう年以外の 2/29 は 2/28 に出す。年が未来のものは出さない)
+  const isThisDay = (x) => { const t = dateIn(y, x.m, x.d); return t.getMonth() + 1 === m && t.getDate() === d && !(x.y > y); };
+  const items = [];
+  for (const v of state.vtubers) {
+    if (hasBirthday(v) && isThisDay(v.birthday)) items.push({ kind: "bday", v, text: "誕生日" });
+    // 日付の項目 (デビュー日など。この推しで非表示にしている項目は出さない)
+    const hidden = hiddenOf(v);
+    for (const f of state.dateFields) {
+      const x = (v.dates || {})[f.id];
+      if (hidden.has(f.id) || !isDate(x) || !isThisDay(x)) continue;
+      const n = x.y ? y - x.y : 0;
+      items.push({ kind: "anniv", v, text: n > 0 ? `${f.label} ${n}周年` : f.label });
+    }
+  }
+  // 登録した予定
+  const key = ymd(date);
+  for (const ev of state.events) {
+    if (ev.date === key) items.push({ kind: "event", v: state.vtubers.find((x) => x.id === ev.vtuberId), ev, time: ev.time, text: ev.title });
+  }
+  // 誕生日 → 記念日 → 予定 (予定は時刻の早い順。時刻なしが先)
+  const order = { bday: 0, anniv: 1, event: 2 };
+  return items.sort((a, b) => order[a.kind] - order[b.kind] || (a.time || "").localeCompare(b.time || ""));
+}
+
+// カレンダーを開く (date: 「2026-10-25」の形。省略すると今日の月・今日を選ぶ)
+function openCalendar(date) {
+  const d = isYmd(date) ? fromYmd(date) : todayDate();
+  state.view = "calendar";
+  state.backToCal = null;
+  state.cal = { y: d.getFullYear(), m: d.getMonth() + 1, sel: ymd(d) };
+  closeDrawer();
+  renderDetail();
+  window.scrollTo({ top: 0 });
+}
+$("#btn-cal").onclick = () => openCalendar();
+
+// カレンダーから推しのページへ (戻る操作・「← カレンダーに戻る」でカレンダーに戻れるようにする)
+function openFromCalendar(id) {
+  const back = { ...state.cal };
+  select(id);
+  state.backToCal = back;
+  history.pushState({ oshiFromCal: true }, ""); // スマホの「戻る」で、アプリの前のページに行かずに戻れるように
+  renderDetail();
+}
+// 戻る操作をしたとき: カレンダーから来ていたらカレンダーに戻す
+window.addEventListener("popstate", () => {
+  if (!state.backToCal) return;
+  state.view = "calendar";
+  state.cal = state.backToCal;
+  state.backToCal = null;
+  renderDetail();
+  window.scrollTo({ top: 0 });
+});
+
+// 表示する月を動かす (diff: -1 で前の月、+1 で次の月)
+function moveMonth(diff) {
+  const d = new Date(state.cal.y, state.cal.m - 1 + diff, 1);
+  state.cal.y = d.getFullYear();
+  state.cal.m = d.getMonth() + 1;
+  renderDetail();
+}
+
+function renderCalendar() {
+  const main = $("#detail");
+  const { y, m, sel } = state.cal;
+  const first = new Date(y, m - 1, 1);
+  const start = new Date(y, m - 1, 1 - first.getDay()); // カレンダーの左上 (前の月の日曜日のこともある)
+  const today = ymd(todayDate());
+  // 日付のマス (最大 6 週。6 週目が全部次の月なら描かない)
+  let cells = WEEK.map((w, i) => `<div class="cal-week${i === 0 ? " sun" : i === 6 ? " sat" : ""}">${w}</div>`).join("");
+  for (let i = 0; i < 42; i++) {
+    const d = new Date(y, m - 1, 1 - first.getDay() + i);
+    if (i === 35 && d.getMonth() !== m - 1) break;
+    const key = ymd(d), items = calendarItems(d);
+    // マスの中: 推しのアイコン (右上に 🎂🎉📌) + 内容。2 件まで出して、残りは「+2」のように数だけ
+    const marks = items.slice(0, 2).map((x) =>
+      `<span class="cal-ev">` +
+      (x.v ? `<span class="cal-av">${avatarHtml(x.v, "cal-avatar")}<span class="cal-badge">${CAL_ICON[x.kind]}</span></span>`
+           : `<span class="cal-av"><span class="cal-avatar no-icon">?</span><span class="cal-badge">${CAL_ICON[x.kind]}</span></span>`) +
+      `<span class="cal-ev-text">${esc(x.text)}</span></span>`
+    ).join("") + (items.length > 2 ? `<span class="cal-more">+${items.length - 2}</span>` : "");
+    const cls = ["cal-day", d.getMonth() !== m - 1 && "other", key === today && "today", key === sel && "sel",
+      d.getDay() === 0 && "sun", d.getDay() === 6 && "sat"].filter(Boolean).join(" ");
+    cells += `<button type="button" class="${cls}" data-day="${key}" aria-label="${d.getMonth() + 1}月${d.getDate()}日${items.length ? ` (${items.length}件)` : ""}">` +
+      `<span class="cal-num">${d.getDate()}</span><span class="cal-marks">${marks}</span></button>`;
+  }
+  // 選んだ日の内容
+  const sd = fromYmd(sel);
+  const list = calendarItems(sd).map((x) => {
+    const name = x.v ? esc(titleOf(x.v)) : "(削除した推し)";
+    const head = `<span class="cal-icon">${CAL_ICON[x.kind]}</span>` +
+      (x.time ? `<span class="cal-time">${x.time}</span>` : "") +
+      `<span class="cal-who">${name}</span><span class="cal-what">${esc(x.text)}</span>`;
+    // 予定は押すと編集、誕生日・記念日は押すとその推しのページへ
+    return x.kind === "event"
+      ? `<li><button type="button" class="cal-item" data-event="${x.ev.id}" title="押すと編集">${head}` +
+        (x.ev.memo ? `<span class="cal-memo">${esc(x.ev.memo)}</span>` : "") + `</button></li>`
+      : `<li><button type="button" class="cal-item" data-select="${x.v.id}" title="押すと推しのページへ">${head}</button></li>`;
+  }).join("");
+  main.innerHTML = `
+    <section class="card cal">
+      <div class="cal-head">
+        <button type="button" id="cal-prev" class="icon-btn" aria-label="前の月">◀</button>
+        <h2>${y}年${m}月</h2>
+        <button type="button" id="cal-next" class="icon-btn" aria-label="次の月">▶</button>
+        <button type="button" id="cal-today" class="cal-today-btn">今日</button>
+      </div>
+      <div class="cal-grid">${cells}</div>
+      <p class="hint cal-legend">🎂 誕生日　🎉 記念日　📌 予定</p>
+    </section>
+    <section class="card cal-list">
+      <h3>${sd.getMonth() + 1}月${sd.getDate()}日 (${WEEK[sd.getDay()]})</h3>
+      ${list ? `<ul>${list}</ul>` : `<p class="none">この日の予定はありません</p>`}
+      <button type="button" id="btn-add-event" class="primary">＋ この日に予定を追加</button>
+    </section>`;
+  $("#cal-prev").onclick = () => moveMonth(-1);
+  $("#cal-next").onclick = () => moveMonth(1);
+  $("#cal-today").onclick = () => openCalendar();
+  // 日付を押すと、その日を選ぶ (前後の月の日なら、その月に移る)
+  main.querySelectorAll("[data-day]").forEach((b) => (b.onclick = () => {
+    const d = fromYmd(b.dataset.day);
+    state.cal = { y: d.getFullYear(), m: d.getMonth() + 1, sel: b.dataset.day };
+    renderDetail();
+  }));
+  main.querySelectorAll("[data-event]").forEach((b) => (b.onclick = () => openEventDialog(state.events.find((e) => e.id === b.dataset.event))));
+  $("#btn-add-event").onclick = () => openEventDialog(null, sel);
+  // 誕生日・記念日を押すと推しのページへ
+  main.querySelectorAll("[data-select]").forEach((b) => (b.onclick = () => openFromCalendar(b.dataset.select)));
+}
+
+// 予定の追加・編集ダイアログを開く (ev が null なら新しい予定。date はその日付で始める。vtuberId を渡すとその推しを選んでおく)
+function openEventDialog(ev, date, vtuberId) {
+  if (!state.vtubers.length) return toast("先に推しを追加してください");
+  const d = $("#dlg-event");
+  state.editingEventId = ev ? ev.id : null;
+  $("#event-title").textContent = ev ? "予定を編集" : "予定を追加";
+  // 推しの選択肢 (名前の順)。最初に選んでおく推し: 編集なら予定の推し、追加なら最後に選んだ推し
+  const list = [...state.vtubers].sort((a, b) => titleOf(a).localeCompare(titleOf(b), "ja"));
+  const pick = ev ? ev.vtuberId : vtuberId ? vtuberId : (state.lastEventVtuber && list.some((v) => v.id === state.lastEventVtuber) ? state.lastEventVtuber : list[0].id);
+  $("#ev-vtuber").innerHTML = list.map((v) => `<option value="${v.id}" ${v.id === pick ? "selected" : ""}>${esc(titleOf(v))}</option>`).join("") +
+    // 推しを削除した予定は「(削除した推し)」のまま残す
+    (ev && !list.some((v) => v.id === ev.vtuberId) ? `<option value="${esc(ev.vtuberId)}" selected>(削除した推し)</option>` : "");
+  $("#ev-date").value = ev ? ev.date : date;
+  $("#ev-time").value = ev ? ev.time : "";
+  $("#ev-title").value = ev ? ev.title : "";
+  $("#ev-memo").value = ev ? ev.memo : "";
+  $("#ev-delete").hidden = !ev;
+  d.returnValue = "";
+  d.showModal();
+}
+
+// 保存
+$("#dlg-event").addEventListener("close", () => {
+  if ($("#dlg-event").returnValue !== "ok") return;
+  const ev = {
+    id: state.editingEventId || newId(),
+    vtuberId: $("#ev-vtuber").value,
+    date: $("#ev-date").value,
+    time: isTime($("#ev-time").value) ? $("#ev-time").value : "",
+    title: $("#ev-title").value.trim().slice(0, 100),
+    memo: $("#ev-memo").value.trim().slice(0, 1000),
+  };
+  if (!isYmd(ev.date) || !ev.title) return toast("日付と内容を入れてください。保存しませんでした");
+  state.lastEventVtuber = ev.vtuberId;
+  // 保存した日を選んだ状態にする (別の月の日付にしたときは、その月に移る)
+  const d = fromYmd(ev.date);
+  state.cal = { y: d.getFullYear(), m: d.getMonth() + 1, sel: ev.date };
+  saveEvents([...state.events.filter((e) => e.id !== ev.id), ev]);
+  toast(state.editingEventId ? "予定を保存しました" : "予定を追加しました");
+});
+
+// 削除
+$("#ev-delete").onclick = async () => {
+  const id = state.editingEventId;
+  $("#dlg-event").close("cancel");
+  if (!(await askConfirm({ title: "この予定を削除しますか？", body: "元に戻せません。", ok: "削除する", danger: true }))) return;
+  saveEvents(state.events.filter((e) => e.id !== id));
+  toast("予定を削除しました");
+};
+
+// 予定を保存して描き直す (先に画面だけ変えて、保存が終わったら読み直す)
+function saveEvents(events) {
+  state.events = events;
+  renderDetail();
+  store.saveSettings({ events }).then(reload).catch(fail);
 }
 
 // ------------------------------------------------------------

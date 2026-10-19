@@ -20,7 +20,7 @@
   <script src="theme.js?v=20261009-2"></script>
   <!-- ?v=… は「バージョン番号」。アプリを更新したら数字を変えると、
        スマホなどに残っている古いファイルではなく、新しいファイルが必ず読み込まれる -->
-  <link rel="stylesheet" href="style.css?v=20261013-15">
+  <link rel="stylesheet" href="style.css?v=20261019-6">
 </head>
 <body>
   <!-- 読み込み中の表示 -->
@@ -32,6 +32,7 @@
     <h1>推しメモ帳</h1>
     <div class="topbar-right">
       <button id="btn-theme" class="ghost" title="画面の明るさ">🌙</button>
+      <button id="btn-cal" class="ghost" title="カレンダー (誕生日・記念日・予定)">📅<span class="wide-only"> カレンダー</span></button>
       <button id="btn-fields" class="ghost" title="登録項目の編集・設定">⚙<span class="wide-only"> 項目・設定</span><span class="narrow-only"> 設定</span></button>
       <button id="btn-help" class="ghost" title="使い方・注意点">？<span class="wide-only"> 使い方・注意点</span></button>
     </div>
@@ -109,6 +110,25 @@
       <div id="tpl-pick"></div>
       <div class="dlg-buttons">
         <button value="cancel">やめる</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- カレンダーの予定の追加・編集 (中身は app.js の openEventDialog で入れる) -->
+  <dialog id="dlg-event">
+    <form method="dialog">
+      <h2 id="event-title" tabindex="-1" autofocus>予定を追加</h2>
+      <div class="ev-form">
+        <label>推し<select id="ev-vtuber" required></select></label>
+        <label>日付<input id="ev-date" type="date" required></label>
+        <label>時刻 <small>(なくてもOK)</small><input id="ev-time" type="time"></label>
+        <label>内容<input id="ev-title" type="text" maxlength="100" required pattern=".*\S.*" placeholder="例: 誕生日配信" autocomplete="off"></label>
+        <label>メモ <small>(なくてもOK)</small><textarea id="ev-memo" rows="2" maxlength="1000" placeholder="例: グッズの予約もこの日"></textarea></label>
+      </div>
+      <div class="dlg-buttons">
+        <button type="button" id="ev-delete" class="danger" hidden>削除</button>
+        <button value="cancel" formnovalidate>キャンセル</button>
+        <button value="ok" class="primary">保存</button>
       </div>
     </form>
   </dialog>
@@ -207,6 +227,6 @@
   <!-- type="module" にすると import が使える -->
   <!-- zip の書き出し・読み込み用ライブラリ (JSZip, MIT ライセンス) -->
   <script src="lib/jszip.min.js"></script>
-  <script type="module" src="app.js?v=20261013-12"></script>
+  <script type="module" src="app.js?v=20261019-4"></script>
 </body>
 </html>
