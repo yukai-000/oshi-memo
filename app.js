@@ -2010,6 +2010,38 @@ function moveMonth(diff) {
   renderDetail();
 }
 
+// マスに出す段の数 (これより多い日は「+2」のように数だけ出す)
+const CAL_LANES = 3;
+// 1 週間分のマスに出すものと、出す位置 (s: 始まりの列, e: 終わりの列, lane: 上から何段目)
+//  - 期間の予定は 1 本の棒 (bar) にする。長いものから上の段に置く
+//  - 誕生日・記念日・1 日だけの予定は、その日の列に 1 つずつ置く
+function weekItems(days) {
+  const keys = days.map(ymd), out = [];
+  for (const ev of state.events) {
+    if (!ev.endDate) continue;
+    const s = keys.findIndex((k) => eventCovers(ev, k));
+    if (s < 0) continue;
+    let e = s;
+    while (e + 1 < 7 && eventCovers(ev, keys[e + 1])) e++;
+    out.push({ bar: true, kind: "event", ev, v: state.vtubers.find((x) => x.id === ev.vtuberId), text: ev.title, s, e,
+      startsHere: ev.date === keys[s], endsHere: eventEnd(ev) === keys[e] });
+  }
+  // (期間の予定どうしは開始時刻の順にそろえておく)
+  out.sort((a, b) => (b.e - b.s) - (a.e - a.s) || a.s - b.s || a.ev.date.localeCompare(b.ev.date));
+  days.forEach((d, i) => calendarItems(d).filter((x) => !(x.kind === "event" && x.ev.endDate))
+    .forEach((x) => out.push({ ...x, s: i, e: i })));
+  // 空いている一番上の段に入れていく
+  const used = [];
+  for (const it of out) {
+    let l = 0;
+    while (used[l] && used[l].slice(it.s, it.e + 1).some(Boolean)) l++;
+    used[l] = used[l] || Array(7).fill(false);
+    for (let c = it.s; c <= it.e; c++) used[l][c] = true;
+    it.lane = l;
+  }
+  return out;
+}
+
 function renderCalendar() {
   const main = $("#detail");
   const { y, m, sel } = state.cal;
@@ -2017,22 +2049,36 @@ function renderCalendar() {
   const start = new Date(y, m - 1, 1 - first.getDay()); // カレンダーの左上 (前の月の日曜日のこともある)
   const today = ymd(todayDate());
   // 日付のマス (最大 6 週。6 週目が全部次の月なら描かない)
-  let cells = WEEK.map((w, i) => `<div class="cal-week${i === 0 ? " sun" : i === 6 ? " sat" : ""}">${w}</div>`).join("");
-  for (let i = 0; i < 42; i++) {
-    const d = new Date(y, m - 1, 1 - first.getDay() + i);
-    if (i === 35 && d.getMonth() !== m - 1) break;
-    const key = ymd(d), items = calendarItems(d);
-    // マスの中: 推しのアイコン (右上に 🎂🎉📌) + 内容。2 件まで出して、残りは「+2」のように数だけ
-    const marks = items.slice(0, 2).map((x) =>
-      `<span class="cal-ev">` +
-      (x.v ? `<span class="cal-av">${avatarHtml(x.v, "cal-avatar")}<span class="cal-badge">${CAL_ICON[x.kind]}</span></span>`
-           : `<span class="cal-av"><span class="cal-avatar no-icon">?</span><span class="cal-badge">${CAL_ICON[x.kind]}</span></span>`) +
-      `<span class="cal-ev-text">${esc(x.text)}</span></span>`
-    ).join("") + (items.length > 2 ? `<span class="cal-more">+${items.length - 2}</span>` : "");
-    const cls = ["cal-day", d.getMonth() !== m - 1 && "other", key === today && "today", key === sel && "sel",
-      d.getDay() === 0 && "sun", d.getDay() === 6 && "sat"].filter(Boolean).join(" ");
-    cells += `<button type="button" class="${cls}" data-day="${key}" aria-label="${d.getMonth() + 1}月${d.getDate()}日${items.length ? ` (${items.length}件)` : ""}">` +
-      `<span class="cal-num">${d.getDate()}</span><span class="cal-marks">${marks}</span></button>`;
+  //  1 週ごとに 1 行。期間の予定は、その週の中で 1 本の棒にしてつなげて出す
+  let cells = `<div class="cal-head-row">` +
+    WEEK.map((w, i) => `<div class="cal-week${i === 0 ? " sun" : i === 6 ? " sat" : ""}">${w}</div>`).join("") + `</div>`;
+  for (let w = 0; w < 6; w++) {
+    const days = Array.from({ length: 7 }, (_, i) => new Date(y, m - 1, 1 - first.getDay() + w * 7 + i));
+    if (w === 5 && days[0].getMonth() !== m - 1) break;
+    const keys = days.map(ymd);
+    const items = weekItems(days);
+    let row = days.map((d, i) => {
+      const key = keys[i], count = calendarItems(d).length;
+      const cls = ["cal-day", d.getMonth() !== m - 1 && "other", key === today && "today", key === sel && "sel",
+        d.getDay() === 0 && "sun", d.getDay() === 6 && "sat"].filter(Boolean).join(" ");
+      return `<button type="button" class="${cls}" style="grid-column:${i + 1}" data-day="${key}" aria-label="${d.getMonth() + 1}月${d.getDate()}日${count ? ` (${count}件)` : ""}">` +
+        `<span class="cal-num">${d.getDate()}</span></button>`;
+    }).join("");
+    // マスの中: 推しのアイコン (右上に 🎂🎉📌) + 内容。上から CAL_LANES 段まで出して、入りきらない分は「+2」のように数だけ
+    const av = (x) => `<span class="cal-av">${x.v ? avatarHtml(x.v, "cal-avatar") : `<span class="cal-avatar no-icon">?</span>`}<span class="cal-badge">${CAL_ICON[x.kind]}</span></span>`;
+    for (const x of items.filter((x) => x.lane < CAL_LANES)) {
+      const pos = `grid-column:${x.s + 1} / ${x.e + 2};grid-row:${x.lane + 2}`;
+      const covers = keys.slice(x.s, x.e + 1).join(" "); // テスト・読み上げ用: この印が出ている日
+      row += x.bar
+        // 期間の予定: 棒 (週をまたぐときは、続きの側の端を四角にする)
+        ? `<div class="cal-bar${x.startsHere ? " start" : ""}${x.endsHere ? " end" : ""}" style="${pos}" data-covers="${covers}">${av(x)}<span class="cal-ev-text">${esc(x.text)}</span></div>`
+        : `<div class="cal-ev" style="${pos}" data-covers="${covers}">${av(x)}<span class="cal-ev-text">${esc(x.text)}</span></div>`;
+    }
+    days.forEach((d, i) => {
+      const hidden = items.filter((x) => x.lane >= CAL_LANES && x.s <= i && i <= x.e).length;
+      if (hidden) row += `<span class="cal-more" style="grid-column:${i + 1};grid-row:${CAL_LANES + 2}">+${hidden}</span>`;
+    });
+    cells += `<div class="cal-row">${row}</div>`;
   }
   // 選んだ日の内容
   const sd = fromYmd(sel);
@@ -2117,7 +2163,7 @@ $("#dlg-event").addEventListener("close", () => {
     title: $("#ev-title").value.trim().slice(0, 100),
     memo: $("#ev-memo").value.trim().slice(0, 1000),
   };
-  if (!isYmd(ev.date) || !ev.title) return toast("日付と内容を入れてください。保存しませんでした");
+  if (!isYmd(ev.date) || !ev.title) return toast("タイトルと日付を入れてください。保存しませんでした");
   Object.assign(ev, cleanEvents([ev])[0]); // 終日なら時刻を消す・終了日が開始日と同じなら消す など、形をそろえる
   state.lastEventVtuber = ev.vtuberId;
   // 保存した日を選んだ状態にする (別の月の日付にしたときは、その月に移る)

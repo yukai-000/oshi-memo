@@ -730,10 +730,11 @@ dialog label.countdown-check {
 .bday-banner.two .banner-events { border-left: 1.5px dashed rgba(59, 53, 48, .3); padding-left: 18px; }
 .bday-banner .banner-events ul { flex-direction: column; }
 .bday-banner .ev-title { opacity: .9; font-size: 13px; }
-/* 今日の予定: 名前と時刻の行の下に内容を出す (長い名前・内容でもつぶれないように) */
-.bday-banner .banner-events .bday-item { flex-wrap: wrap; text-align: left; }
+/* お知らせの 1 行: 長い名前でもつぶれないように、入りきらないときは日付などを次の行に回す */
+.bday-banner .bday-item { flex-wrap: wrap; text-align: left; row-gap: 2px; }
+.bday-banner .bday-name { min-width: 0; max-width: calc(100% - 40px); overflow-wrap: anywhere; } /* アイコンの横で折り返す */
+/* 今日の予定: 名前と時刻の行の下に内容を出す */
 .bday-banner .banner-events .ev-title { flex-basis: 100%; padding-left: 40px; overflow-wrap: anywhere; }
-.bday-banner .banner-events .bday-name { min-width: 0; overflow-wrap: anywhere; }
 @media (max-width: 600px) {
   .bday-banner.two { grid-template-columns: 1fr; }
   .bday-banner.two .banner-events { border-left: none; padding-left: 0; border-top: 1.5px dashed rgba(59, 53, 48, .3); padding-top: 8px; margin-top: 8px; }
@@ -1012,7 +1013,26 @@ dialog label.tpl-label-text { display: block; margin: 10px 0 0; }
 .cal-head h2 { margin: 0; min-width: 7.5em; text-align: center; font-family: var(--hand); }
 .cal-today-btn { margin-left: auto; font-size: 13px; padding: 2px 12px; }
 /* 7 列のマス目 */
-.cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; }
+.cal-grid { display: flex; flex-direction: column; gap: 2px; }
+/* 曜日の見出しの行 と 1 週間の行 (7 列。1 段目が日付、2〜4 段目が予定、5 段目が「+2」) */
+.cal-head-row, .cal-row { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); column-gap: 2px; }
+.cal-row { grid-template-rows: 28px auto auto auto minmax(14px, 1fr); min-height: 92px; }
+.cal-row > .cal-day { grid-row: 1 / -1; }       /* マスは行の高さいっぱい (押すとその日を選ぶ) */
+/* マスの上に重ねる予定 (押すと下のマスを押したことにする) */
+.cal-row > .cal-ev, .cal-row > .cal-bar, .cal-row > .cal-more { position: relative; z-index: 1; pointer-events: none; min-width: 0; }
+.cal-row > .cal-ev { margin: 2px 4px; }
+/* 期間の予定の棒 */
+.cal-bar {
+  display: flex; align-items: center; gap: 6px;
+  margin: 2px 0; padding: 1px 6px 1px 4px;
+  background: var(--tape-pink);
+  color: var(--ink);
+  height: 26px;
+}
+.cal-bar.start { margin-left: 4px; border-top-left-radius: 13px; border-bottom-left-radius: 13px; }
+.cal-bar.end { margin-right: 4px; border-top-right-radius: 6px; border-bottom-right-radius: 6px; }
+.cal-bar .cal-avatar { width: 20px; height: 20px; }
+.cal-bar .cal-badge { font-size: 10px; top: -4px; right: -6px; }
 .cal-marks { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .cal-week { text-align: center; font-size: 12px; color: var(--muted); padding: 2px 0 4px; }
 .cal-week.sun, .cal-day.sun .cal-num { color: #d0556a; }
@@ -1022,7 +1042,6 @@ dialog label.tpl-label-text { display: block; margin: 10px 0 0; }
   flex-direction: column;
   align-items: stretch;
   gap: 3px;
-  min-height: 92px;
   padding: 4px 4px 3px;
   border: 1px solid transparent;
   border-radius: 4px;
@@ -1065,7 +1084,7 @@ dialog label.tpl-label-text { display: block; margin: 10px 0 0; }
   white-space: nowrap;
   text-overflow: ellipsis;  /* 入りきらない内容は「…」 */
 }
-.cal-more { font-size: 11px; color: var(--muted); text-align: right; }
+.cal-more { font-size: 11px; color: var(--muted); text-align: center; align-self: end; }
 .cal-legend { margin: 10px 0 0; }
 /* 下の一覧 */
 .cal-list h3 { margin-top: 0; font-family: var(--hand); }
@@ -1093,8 +1112,15 @@ dialog label.tpl-label-text { display: block; margin: 10px 0 0; }
   .cal-head { gap: 4px; }
   .cal-head h2 { font-size: 19px; min-width: 6.5em; }
   /* スマホ: アイコンの下に内容を小さく出す */
-  .cal-grid { gap: 1px; }
-  .cal-day { min-height: 76px; padding: 3px 1px 2px; gap: 2px; }
+  .cal-head-row, .cal-row { column-gap: 1px; }
+  .cal-row { grid-template-rows: 26px auto auto auto minmax(12px, 1fr); min-height: 76px; }
+  .cal-row > .cal-ev { margin: 1px 1px; }
+  .cal-day { padding: 3px 1px 2px; gap: 2px; }
+  .cal-bar { height: 20px; gap: 3px; padding: 0 3px 0 2px; }
+  .cal-bar .cal-avatar { width: 16px; height: 16px; font-size: 9px; }
+  .cal-bar .cal-ev-text { font-size: 9px; }
+  .cal-bar.start { margin-left: 2px; }
+  .cal-bar.end { margin-right: 2px; }
   .cal-num { font-size: 13px; }
   .cal-ev { flex-direction: column; gap: 0; }
   .cal-avatar { width: 22px; height: 22px; }
