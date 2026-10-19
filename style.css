@@ -943,6 +943,8 @@ a.button { color: var(--ink); text-decoration: none; display: inline-block; }
   .topbar-right button.ghost { padding-left: 6px; padding-right: 6px; }
   #btn-cal { font-size: 17px; line-height: 1; }
 }
+/* PC でも幅が狭め (1000px 以下) のときは「カレンダー」の文字を省いて 📅 だけにする (上のバーからはみ出さないように) */
+@media (max-width: 1000px) { #btn-cal .wide-only { display: none; } }
 
 /* ---------- 作者の表示 (画面の一番下) ---------- */
 .credit {

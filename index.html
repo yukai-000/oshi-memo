@@ -20,7 +20,7 @@
   <script src="theme.js?v=20261009-2"></script>
   <!-- ?v=… は「バージョン番号」。アプリを更新したら数字を変えると、
        スマホなどに残っている古いファイルではなく、新しいファイルが必ず読み込まれる -->
-  <link rel="stylesheet" href="style.css?v=20261019-6">
+  <link rel="stylesheet" href="style.css?v=20261019-7">
 </head>
 <body>
   <!-- 読み込み中の表示 -->
@@ -123,7 +123,7 @@
         <label>日付<input id="ev-date" type="date" required></label>
         <label>時刻 <small>(なくてもOK)</small><input id="ev-time" type="time"></label>
         <label>内容<input id="ev-title" type="text" maxlength="100" required pattern=".*\S.*" placeholder="例: 誕生日配信" autocomplete="off"></label>
-        <label>メモ <small>(なくてもOK)</small><textarea id="ev-memo" rows="2" maxlength="1000" placeholder="例: グッズの予約もこの日"></textarea></label>
+        <label>メモ <small>(なくてもOK)</small><textarea id="ev-memo" rows="2" maxlength="1000"></textarea></label>
       </div>
       <div class="dlg-buttons">
         <button type="button" id="ev-delete" class="danger" hidden>削除</button>
