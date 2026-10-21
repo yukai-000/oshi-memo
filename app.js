@@ -5,7 +5,7 @@
 // サーバーやログインは使いません。保存の処理は store.js にまとめています。
 // ============================================================
 
-import * as store from "./store.js?v=20261008-6"; // ?v= は更新時に変えるバージョン番号
+import * as store from "./store.js?v=20261020-1"; // ?v= は更新時に変えるバージョン番号
 
 // 初回の色の項目 (これも自由に追加・削除・編集できる)
 const DEFAULT_COLOR_FIELDS = [
@@ -59,6 +59,8 @@ const state = {
   editingEventId: null, // 編集中の予定 (null なら新しい予定)
   lastEventVtuber: null, // 最後に予定を登録した推し (次に追加するとき最初に選んでおく)
   backToCal: null,   // カレンダーから推しのページに来たとき、戻る先の月と日 {y, m, sel}
+  drawingsOpenId: null, // 記録を「すべて見る」にしている推しの ID
+  editingDrawing: null, // 編集中の記録 {vid, id} (id が null なら新しい記録)
 };
 const thumbUrls = new Map();    // サムネイル画像の表示用 URL (作り直さないよう保存)
 
@@ -91,6 +93,17 @@ function fail(e) {
 // 新しいお知らせは、この一覧の「一番上」に足していく。
 // id は前のお知らせより大きい数字にすること (見たかどうかの判定に使う)。
 const NEWS = [
+  {
+    id: 10,
+    date: "2026/10/21",
+    items: [
+      "「記録」機能を追加しました。推しのページから、イラストや小説などを投稿した日・リンク・メモ・画像を記録できます。カレンダーからも追加でき、📝 のアイコンで表示されます。",
+      "画像を追加するときに、リンクも登録できるようになりました。画像を開いたときの「🔗 開く」からリンク先を見ることができます。",
+      "予定の「📲 カレンダーに追加」から、スマホなどのカレンダーアプリに予定を追加できるようになりました。",
+      "推しリストを「事務所ごと」に並べられるようになりました。推しリストの上の「並び」ボタンで切り替えられます。",
+      "予定や記録を追加するときの推しの選択欄で、名前やふりがなを入力して検索できるようになりました。",
+    ],
+  },
   {
     id: 9,
     date: "2026/10/19",
@@ -607,10 +620,34 @@ function renderList() {
     const ra = readingOf(a), rb = readingOf(b);
     return (b.favorite ? 1 : 0) - (a.favorite ? 1 : 0) || group(ra) - group(rb) || ra.localeCompare(rb, "ja");
   });
+  // 「事務所ごと」のときは、事務所の見出しを付けてまとめる (お気に入りは一番上の「★ お気に入り」に)
+  const of = officeField(), byOffice = of && listGroupOn();
+  $("#btn-group").hidden = !of || !state.vtubers.length;
+  $("#btn-group").textContent = byOffice ? "並び: 事務所ごと ▾" : "並び: あいうえお順 ▾";
+  const officeOf = (v) => ((v.values || {})[of.id] || "").trim();
+  if (byOffice) {
+    const NONE = "\uffff"; // 事務所が空の人は一番下
+    const key = (v) => (v.favorite ? "" : officeOf(v) || NONE);
+    list.sort((a, b) => {
+      const ka = key(a), kb = key(b);
+      return ka === kb ? 0 : ka === "" ? -1 : kb === "" ? 1 : ka === NONE ? 1 : kb === NONE ? -1 : ka.localeCompare(kb, "ja");
+    }); // (同じ事務所の中は、上のあいうえお順のまま)
+  }
+  let lastGroup = null;
   for (const v of list) {
     // 検索: どれかの項目 (名前・ふりがな・事務所など) に検索語が含まれていれば表示
     const text = normalize(Object.values(v.values || {}).join(" "));
     if (q && !text.includes(q)) continue;
+    if (byOffice) {
+      const g = v.favorite ? "★ お気に入り" : officeOf(v) || "事務所なし";
+      if (g !== lastGroup) {
+        const h = document.createElement("li");
+        h.className = "group-head";
+        h.textContent = g;
+        ul.appendChild(h);
+        lastGroup = g;
+      }
+    }
     const li = document.createElement("li");
     // この推しで非表示にしている項目は、一覧の小さな文字にも出さない (検索には使う)
     const hidden = hiddenOf(v), vals = v.values || {};
@@ -634,6 +671,18 @@ function renderList() {
     ul.innerHTML = `<li class="no-hit">${state.vtubers.length ? "見つかりませんでした" : "まだ登録がありません"}</li>`;
   }
 }
+
+// 事務所の項目 (ID が office か、項目名に「事務所」「所属」が入っているもの)
+const officeField = () => state.fields.find((f) => f.id === "office") || state.fields.find((f) => /事務所|所属/.test(f.label));
+// 推しリストの並び (この端末だけに覚えておく)
+const LIST_GROUP_KEY = "oshimemo-list-group";
+function listGroupOn() {
+  try { return localStorage.getItem(LIST_GROUP_KEY) === "office"; } catch { return false; }
+}
+$("#btn-group").onclick = () => {
+  try { localStorage.setItem(LIST_GROUP_KEY, listGroupOn() ? "kana" : "office"); } catch {}
+  renderList();
+};
 
 // メニューを開く・閉じる
 function openDrawer() {
@@ -745,6 +794,21 @@ function renderDetail() {
   }).join("") || `<span class="none">予定はありません</span>`}` +
     `<button type="button" id="btn-oshi-event" class="add-event-btn">＋ 予定を追加</button></dd>`;
 
+  // 記録の行 (イラスト・小説などの投稿の記録。新しい順。最初は 3 件まで、「すべて見る」で全部)
+  const drawings = drawingsOf(v);
+  const showAll = state.drawingsOpenId === v.id;
+  const drawRow = `<dt>記録</dt><dd class="oshi-drawings">` +
+    (drawings.length ? `<span class="draw-count">これまで <b>${drawings.length}</b> 件</span>` : "") +
+    (drawings.length ? (showAll ? drawings : drawings.slice(0, 3)).map((d) =>
+      `<span class="cal-li"><button type="button" class="cal-item" data-drawing="${d.id}" title="押すと編集">` +
+      `<span class="cal-icon">📝</span><span>${d.date.replace(/-/g, "/")}</span>` +
+      (d.memo ? `<span class="cal-what">${esc(d.memo)}</span>` : "") + `</button>` +
+      recThumbHtml(d) +
+      (d.url ? `<a class="ev-link" href="${esc(d.url)}" target="_blank" rel="noopener noreferrer" title="${esc(d.url)}">🔗 開く</a>` : "") + `</span>`).join("")
+      : `<span class="none">イラストや小説などを投稿した日を記録できます</span>`) +
+    (drawings.length > 3 ? `<button type="button" id="btn-drawings-all" class="memo-toggle">${showAll ? "閉じる ▲" : `すべて見る (${drawings.length} 件) ▼`}</button>` : "") +
+    `<button type="button" id="btn-add-drawing" class="add-event-btn">＋ 記録を追加</button></dd>`;
+
   // リンクの行 (押すと新しいタブで開く)
   const links = (v.links || []).filter((l) => safeUrl(l.url));
   const linkRow = `<dt>リンク</dt><dd>${links.length
@@ -798,7 +862,7 @@ function renderDetail() {
         ${hasIcon(v) ? `<button id="btn-icon-remove" class="ghost">アイコンを外す</button>` : ""}
         <input id="icon-input" type="file" accept="image/*" hidden>
       </div>
-      <dl class="fields">${rows}${memoRow}${colorRows}${bdayRow}${dateRows}${eventRow}${linkRow}</dl>
+      <dl class="fields">${rows}${memoRow}${colorRows}${bdayRow}${dateRows}${eventRow}${drawRow}${linkRow}</dl>
     </section>
     <section class="card">
       <div class="card-head"><h2>画像</h2><button id="btn-add-folder">＋ フォルダ</button></div>
@@ -837,6 +901,10 @@ function bindDetailEvents(v) {
   // 予定: 押すとその日のカレンダー、「＋ 予定を追加」はこの推しを選んだ状態で追加画面を開く
   document.querySelectorAll("[data-cal-day]").forEach((b) => (b.onclick = () => openCalendar(b.dataset.calDay)));
   $("#btn-oshi-event").onclick = () => openEventDialog(null, ymd(todayDate()), v.id);
+  // 記録
+  $("#btn-add-drawing").onclick = () => openDrawingDialog(v, null);
+  document.querySelectorAll("[data-drawing]").forEach((b) => (b.onclick = () => openDrawingDialog(v, drawingsOf(v).find((d) => d.id === b.dataset.drawing))));
+  if ($("#btn-drawings-all")) $("#btn-drawings-all").onclick = () => { state.drawingsOpenId = state.drawingsOpenId === v.id ? null : v.id; renderDetail(); };
   if ($("#btn-back-cal")) $("#btn-back-cal").onclick = () => history.back(); // 戻る操作と同じ (下の popstate で戻す)
   // お気に入りの切り替え
   $("#btn-fav").onclick = () => store.updateVtuber(v.id, { favorite: !v.favorite }).then(reload).catch(fail);
@@ -858,7 +926,7 @@ function bindDetailEvents(v) {
 
   // 画像の追加 (ボタン)
   const fileInput = $("#file-input");
-  $("#btn-upload").onclick = () => fileInput.click();
+  $("#btn-upload").onclick = openUploadDialog; // 画像とリンクを選んでから追加
   fileInput.onchange = () => upload(fileInput.files);
 
   // 画像の追加 (ドラッグ＆ドロップ)
@@ -1113,8 +1181,48 @@ async function makeThumb(bitmap) {
 // 画像の拡張子 (保存・ダウンロード用)
 const extOf = (type) => ({ "image/png": "png", "image/gif": "gif", "image/webp": "webp", "image/bmp": "bmp" }[type] || "jpg");
 
+// 「画像を追加」のダイアログ (画像を選ぶ + リンク)
+let uploadFiles = []; // ダイアログで選んだ画像
+function openUploadDialog() {
+  uploadFiles = [];
+  $("#up-file").value = "";
+  $("#up-url").value = "";
+  showUploadFiles();
+  checkUploadForm();
+  $("#dlg-upload").returnValue = "";
+  $("#dlg-upload").showModal();
+}
+// 選んだ画像の小さいプレビューと枚数
+function showUploadFiles() {
+  const box = $("#up-previews");
+  box.querySelectorAll("img").forEach((i) => URL.revokeObjectURL(i.src));
+  box.innerHTML = uploadFiles.map((f) => `<img src="${URL.createObjectURL(f)}" alt="">`).join("");
+  $("#up-count").textContent = uploadFiles.length ? `${uploadFiles.length} 枚選んでいます` : "";
+  $("#up-pick").textContent = uploadFiles.length ? "選び直す" : "画像を選ぶ";
+}
+// 画像を選ぶまで「追加」は押せない。リンクは https:// などで始まるものだけ
+function checkUploadForm() {
+  const u = $("#up-url").value.trim();
+  $("#up-url").setCustomValidity(u && !safeUrl(u) ? "https:// で始まる URL を入れてください" : "");
+  $("#up-ok").disabled = !uploadFiles.length;
+}
+$("#up-pick").onclick = () => $("#up-file").click();
+$("#up-file").addEventListener("change", () => {
+  uploadFiles = [...$("#up-file").files].filter((f) => f.type.startsWith("image/"));
+  showUploadFiles();
+  checkUploadForm();
+});
+$("#up-url").addEventListener("input", checkUploadForm);
+$("#dlg-upload").addEventListener("close", () => {
+  const files = uploadFiles;
+  uploadFiles = [];
+  showUploadFiles(); // プレビューの URL を片付ける
+  if ($("#dlg-upload").returnValue !== "ok" || !files.length) return;
+  upload(files, $("#up-url").value.trim());
+});
+
 let uploading = false;
-async function upload(fileList) {
+async function upload(fileList, url = "") {
   const v = current();
   const folder = state.folder;
   const files = [...(fileList || [])].filter((f) => f.type.startsWith("image/"));
@@ -1140,7 +1248,7 @@ async function upload(fileList) {
       const base = file.name && file.name !== "image.png" ? file.name.replace(/\.[^.]+$/, "") : `paste_${Date.now()}`;
       await store.addImage({
         id: newId(), vtuberId: v.id, folder, name: `${base}.${extOf(file.type)}`, type: file.type,
-        thumb, width, height, createdAt: Date.now(),
+        thumb, width, height, createdAt: Date.now(), ...(url ? { url } : {}),
       }, file);
       done++;
     }
@@ -1196,6 +1304,7 @@ async function openLightbox(id) {
   $("#lightbox-img").src = thumbUrl(img); // 読み込みが終わるまではサムネイルを表示
   $("#lightbox-download").removeAttribute("href");
   $("#lb-memo").value = img.memo || "";
+  showLightboxUrl(img.url || "");
   $("#lb-pick").hidden = true;
   applyView();
   $("#lightbox").hidden = false;
@@ -1360,6 +1469,26 @@ $("#lb-memo").addEventListener("change", () => {
     .catch(fail);
 });
 $("#lb-memo").addEventListener("keydown", (e) => { if (e.key === "Enter") e.target.blur(); });
+
+// リンク (入力欄から離れたとき・Enter で保存。入っていれば「🔗 開く」を出す)
+function showLightboxUrl(url) {
+  const ok = !!url && safeUrl(url);
+  $("#lb-url").value = ok ? url : "";
+  $("#lb-url-open").hidden = !ok;
+  if (ok) $("#lb-url-open").href = url;
+  else $("#lb-url-open").removeAttribute("href");
+}
+$("#lb-url").addEventListener("change", () => {
+  const id = lb.id, url = $("#lb-url").value.trim();
+  if (!id) return;
+  if (url && !safeUrl(url)) return toast("https:// で始まる URL を入れてください");
+  showLightboxUrl(url);
+  store.updateImages([id], { url })
+    .then(reload)
+    .then(() => toast(url ? "リンクを保存しました" : "リンクを消しました"))
+    .catch(fail);
+});
+$("#lb-url").addEventListener("keydown", (e) => { if (e.key === "Enter") e.target.blur(); });
 
 // ------------------------------------------------------------
 // Vtuber の追加・編集ダイアログ
@@ -1705,7 +1834,7 @@ $("#dlg-fields").addEventListener("close", () => {
 //  - 「画像も含めて」: .zip ファイル (別の端末へのお引っ越しにも使える)
 // ------------------------------------------------------------
 // Vtuber 1 人分のうち、バックアップに入れる項目
-const BACKUP_KEYS = ["values", "memo", "colors", "links", "birthday", "birthdayCountdown", "dates", "countdown", "hidden", "favorite", "folders", "icon", "createdAt"];
+const BACKUP_KEYS = ["values", "memo", "colors", "links", "birthday", "birthdayCountdown", "dates", "countdown", "hidden", "favorite", "folders", "icon", "drawings", "createdAt"];
 
 // 文字の部分 (設定と Vtuber の情報) をまとめる
 function backupData() {
@@ -1827,7 +1956,8 @@ $("#import-input").onchange = async (e) => {
       BACKUP_KEYS.forEach((k) => v[k] !== undefined && (out[k] = v[k]));
       out.values = cleanValues(out.values);
       for (const k of ["hidden", "countdown"]) if (v[k] !== undefined) out[k] = cleanIds(v[k]);
-      if (v.birthdayCountdown !== undefined && typeof v.birthdayCountdown !== "boolean") delete out.birthdayCountdown; // 名前などが無い・壊れているときも一覧が表示できるように
+      if (v.birthdayCountdown !== undefined && typeof v.birthdayCountdown !== "boolean") delete out.birthdayCountdown;
+      if (v.drawings !== undefined) out.drawings = drawingsOf({ drawings: v.drawings }); // 記録 (壊れた行・危ないリンクは捨てる) // 名前などが無い・壊れているときも一覧が表示できるように
       await store.putVtuber(out);
     }
 
@@ -1894,12 +2024,258 @@ async function renderStorageInfo() {
 }
 
 // ------------------------------------------------------------
+// 推しの選択欄 (文字を打つと候補が出る。名前・ふりがなで検索、ひらがな/カタカナは区別しない)
+//  - 本当の値は隠した <select> に入れておく (保存のときは今までどおり select.value を読む)
+//  - 見える部分は「文字の入力欄」と「候補の一覧」
+// ------------------------------------------------------------
+const oshiPickers = new Map(); // select → {input, list, items, active, dirty}
+function attachOshiPicker(sel) {
+  sel.hidden = true;
+  const box = document.createElement("div");
+  box.className = "oshi-pick";
+  box.innerHTML = `<input type="text" class="oshi-pick-input" role="combobox" aria-autocomplete="list" aria-expanded="false" autocomplete="off" spellcheck="false" placeholder="名前・ふりがなで検索">` +
+    `<ul class="oshi-pick-list" role="listbox" hidden></ul>`;
+  sel.after(box);
+  const pk = { sel, input: box.querySelector("input"), list: box.querySelector("ul"), items: [], active: -1, dirty: false };
+  oshiPickers.set(sel, pk);
+  const { input, list } = pk;
+  // 候補を出す (q: 打った文字。空なら全員)
+  const show = (q) => {
+    const nq = normalize(q.trim());
+    pk.items = [...sel.options].filter((o) => {
+      if (!nq) return true;
+      const v = state.vtubers.find((x) => x.id === o.value);
+      return normalize(o.textContent + " " + (v ? Object.values(v.values || {}).join(" ") : "")).includes(nq);
+    }).map((o) => o.value);
+    pk.active = pk.items.indexOf(sel.value) >= 0 && !nq ? pk.items.indexOf(sel.value) : pk.items.length ? 0 : -1;
+    const ff = furiganaField();
+    list.innerHTML = pk.items.map((id, i) => {
+      const v = state.vtubers.find((x) => x.id === id);
+      const name = [...sel.options].find((o) => o.value === id).textContent;
+      const kana = v && ff ? (v.values || {})[ff.id] || "" : "";
+      return `<li role="option" data-id="${esc(id)}" class="${i === pk.active ? "active" : ""}" aria-selected="${id === sel.value}">` +
+        (v ? avatarHtml(v, "cal-avatar") : `<span class="cal-avatar no-icon">?</span>`) +
+        `<span class="oshi-pick-name">${esc(name)}</span>${kana && kana !== name ? `<span class="oshi-pick-kana">${esc(kana)}</span>` : ""}</li>`;
+    }).join("") || `<li class="none">見つかりません</li>`;
+    list.hidden = false;
+    input.setAttribute("aria-expanded", "true");
+    list.querySelector("li.active")?.scrollIntoView({ block: "nearest" });
+  };
+  const hide = () => { list.hidden = true; input.setAttribute("aria-expanded", "false"); };
+  // 候補を選ぶ
+  const choose = (id) => {
+    sel.value = id;
+    pk.dirty = false;
+    syncOshiPicker(sel);
+    hide();
+  };
+  input.addEventListener("focus", () => { input.select(); show(pk.dirty ? input.value : ""); });
+  input.addEventListener("input", () => { pk.dirty = true; show(input.value); check(); });
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      if (list.hidden) return show(pk.dirty ? input.value : "");
+      if (!pk.items.length) return;
+      pk.active = (pk.active + (e.key === "ArrowDown" ? 1 : -1) + pk.items.length) % pk.items.length;
+      list.querySelectorAll("li").forEach((li, i) => li.classList.toggle("active", i === pk.active));
+      list.querySelector("li.active")?.scrollIntoView({ block: "nearest" });
+    } else if (e.key === "Enter" && !list.hidden) {
+      e.preventDefault(); // 保存はしないで、候補を選ぶだけ
+      if (pk.active >= 0) choose(pk.items[pk.active]);
+    } else if (e.key === "Escape" && !list.hidden) {
+      e.preventDefault(); // ダイアログは閉じないで、候補だけ閉じる
+      hide();
+    }
+  });
+  // 候補を押したとき (入力欄から離れる前に選ぶ。<label> の中なので、押した動きはここで止める)
+  list.addEventListener("mousedown", (e) => e.preventDefault());
+  list.addEventListener("click", (e) => {
+    e.preventDefault();
+    const li = e.target.closest("li[data-id]");
+    if (li) choose(li.dataset.id);
+  });
+  input.addEventListener("blur", () => {
+    hide();
+    // 打った文字が、ちょうど 1 人の名前と同じなら、その推しを選ぶ
+    if (pk.dirty) {
+      const hit = [...sel.options].filter((o) => normalize(o.textContent) === normalize(input.value.trim()));
+      if (hit.length === 1) choose(hit[0].value);
+    }
+    check();
+  });
+  // 候補から選ばずに文字だけ変えたときは保存できないようにする
+  const check = () => input.setCustomValidity(pk.dirty ? "推しを候補から選んでください" : "");
+  sel.addEventListener("change", () => { pk.dirty = false; syncOshiPicker(sel); });
+}
+// 隠した <select> の値に合わせて、入力欄の文字をそろえる (ダイアログを開いたとき・選んだとき)
+function syncOshiPicker(sel) {
+  const pk = oshiPickers.get(sel);
+  if (!pk) return;
+  const o = sel.options[sel.selectedIndex];
+  pk.input.value = o ? o.textContent : "";
+  pk.dirty = false;
+  pk.input.setCustomValidity("");
+  pk.list.hidden = true;
+}
+attachOshiPicker($("#ev-vtuber"));
+attachOshiPicker($("#dr-vtuber"));
+
+// ------------------------------------------------------------
+// 記録 (推しごとに、イラストや小説などの「投稿日・投稿のリンク・メモ」を残す)
+// ------------------------------------------------------------
+// 記録の一覧を正しい形のものだけにして、新しい順に並べる
+function drawingsOf(v) {
+  return (Array.isArray(v.drawings) ? v.drawings : [])
+    .filter((d) => d && typeof d.id === "string" && /^[A-Za-z0-9]{1,40}$/.test(d.id) && isYmd(d.date))
+    .map((d) => ({
+      id: d.id, date: d.date,
+      url: typeof d.url === "string" && d.url.length <= 2000 && safeUrl(d.url) ? d.url : "",
+      memo: typeof d.memo === "string" ? d.memo.slice(0, 200) : "",
+      imageId: typeof d.imageId === "string" && /^[A-Za-z0-9]{1,40}$/.test(d.imageId) ? d.imageId : "", // 付けた画像 (「記録」フォルダの画像)
+    }))
+    .sort((a, b) => b.date.localeCompare(a.date));
+}
+
+// v: 推し (カレンダーから新しく追加するときは null にして、推しを選べるようにする) / d: 編集する記録 / date: 最初に入れておく投稿日
+function openDrawingDialog(v, d, date) {
+  if (!v && !state.vtubers.length) return toast("先に推しを追加してください");
+  state.editingDrawing = { vid: v ? v.id : null, id: d ? d.id : null };
+  $("#drawing-title").textContent = d ? "記録を編集" : "記録を追加";
+  // 推しの選択欄: 推しが決まっていないとき (カレンダーから追加) だけ出す。最初に選んでおくのは最後に選んだ推し
+  $("#dr-vtuber-row").hidden = !!v;
+  if (!v) {
+    const list = [...state.vtubers].sort((a, b) => titleOf(a).localeCompare(titleOf(b), "ja"));
+    const pick = list.some((x) => x.id === state.lastEventVtuber) ? state.lastEventVtuber : list[0].id;
+    $("#dr-vtuber").innerHTML = list.map((x) => `<option value="${x.id}" ${x.id === pick ? "selected" : ""}>${esc(titleOf(x))}</option>`).join("");
+    syncOshiPicker($("#dr-vtuber")); // 文字を打てる選択欄にも名前を入れる
+  }
+  $("#dr-date").value = d ? d.date : date || ymd(todayDate());
+  $("#dr-url").value = d ? d.url : "";
+  $("#dr-memo").value = d ? d.memo : "";
+  $("#dr-delete").hidden = !d;
+  // 画像: 選んだファイル (file) と「画像を外す」(clear) は保存するまで覚えておく
+  state.editingDrawing.file = null;
+  state.editingDrawing.clear = false;
+  state.editingDrawing.imageId = d ? d.imageId : "";
+  $("#dr-file").value = "";
+  showDrawingImage();
+  checkDrawingForm();
+  $("#dlg-drawing").returnValue = "";
+  $("#dlg-drawing").showModal();
+}
+// 記録の画像の小さい表示 (推しのページの「記録」欄用。押すと拡大。「記録」フォルダから消されていたら出さない)
+function recThumbHtml(d) {
+  const img = d.imageId && state.images.find((i) => i.id === d.imageId);
+  return img ? `<img class="rec-thumb" src="${thumbUrl(img)}" data-open="${img.id}" alt="" title="押すと大きく表示">` : "";
+}
+
+// ダイアログの画像のプレビュー (新しく選んだ画像 → 前から付いている画像 → なし の順)
+function showDrawingImage() {
+  const ed = state.editingDrawing, pv = $("#dr-preview");
+  if (pv.dataset.url) { URL.revokeObjectURL(pv.dataset.url); delete pv.dataset.url; }
+  pv.hidden = true;
+  pv.removeAttribute("src");
+  // ボタン: 画像があるときは「画像を変える」「画像を外す」、無いときは「画像を選ぶ」だけ
+  const setHas = (has) => {
+    $("#dr-image-clear").hidden = !has;
+    $("#dr-image-pick").textContent = has ? "画像を変える" : "画像を選ぶ";
+  };
+  setHas(!!ed.file);
+  if (ed.file) {
+    pv.dataset.url = URL.createObjectURL(ed.file);
+    pv.src = pv.dataset.url;
+    pv.hidden = false;
+  } else if (!ed.clear && ed.imageId) {
+    // 前から付いている画像 (「記録」フォルダから消されていたら、画像なしとして扱う)
+    store.getImage(ed.imageId).then((img) => {
+      if (!img || state.editingDrawing !== ed || ed.file || ed.clear) return;
+      pv.src = thumbUrl(img);
+      pv.hidden = false;
+      setHas(true);
+    }).catch(() => {});
+  }
+}
+$("#dr-image-pick").onclick = () => $("#dr-file").click();
+$("#dr-file").addEventListener("change", () => {
+  const f = $("#dr-file").files[0];
+  if (!f) return;
+  if (!f.type.startsWith("image/")) return toast("画像のファイルを選んでください");
+  state.editingDrawing.file = f;
+  state.editingDrawing.clear = false;
+  showDrawingImage();
+});
+$("#dr-image-clear").onclick = () => {
+  state.editingDrawing.file = null;
+  state.editingDrawing.clear = true;
+  $("#dr-file").value = "";
+  showDrawingImage();
+};
+
+// リンクは http:// か https:// で始まるものだけ
+function checkDrawingForm() {
+  const u = $("#dr-url").value.trim();
+  $("#dr-url").setCustomValidity(u && !safeUrl(u) ? "https:// で始まる URL を入れてください" : "");
+}
+$("#dr-url").addEventListener("input", checkDrawingForm);
+
+// 保存 (その推しの記録を丸ごと書き直す)
+function saveDrawings(vid, list) {
+  const v = state.vtubers.find((x) => x.id === vid);
+  if (!v) return;
+  v.drawings = list;
+  renderDetail();
+  saveVtuberDrawings(vid, list);
+}
+$("#dlg-drawing").addEventListener("close", async () => {
+  if ($("#dlg-drawing").returnValue !== "ok") return;
+  const ed = state.editingDrawing || {};
+  const { id } = ed;
+  // 推し: 決まっていなければ (カレンダーから追加したとき) 選んだ推し
+  const vid = state.editingDrawing.vid || $("#dr-vtuber").value;
+  const v = state.vtubers.find((x) => x.id === vid);
+  if (!v || !isYmd($("#dr-date").value)) return;
+  if (!state.editingDrawing.vid) state.lastEventVtuber = vid;
+  // カレンダーを見ているときは、保存した日を選んだ状態にする
+  if (state.view === "calendar") { const t = fromYmd($("#dr-date").value); state.cal = { y: t.getFullYear(), m: t.getMonth() + 1, sel: ymd(t) }; }
+  const d = { id: id || newId(), date: $("#dr-date").value, url: $("#dr-url").value.trim(), memo: $("#dr-memo").value.trim().slice(0, 200), imageId: ed.imageId || "" };
+  // 画像を変えた・外したときは、前の画像を消す
+  const drop = (ed.file || ed.clear) && d.imageId ? [d.imageId] : [];
+  if (ed.file || ed.clear) d.imageId = "";
+  try {
+    // 新しい画像は、その推しの「記録」フォルダに保存する
+    if (ed.file) {
+      toast("画像を保存中…");
+      d.imageId = await addRecordImage(v, ed.file, `${d.date.replace(/-/g, "/")}${d.memo ? " " + d.memo : ""}`, d.url);
+    }
+  } catch (e) {
+    return fail(e); // 画像を保存できなかったときは、記録も保存しない
+  }
+  // 記録のリンクを変えたときは、付けている画像のリンクも同じにする
+  const before = id && drawingsOf(v).find((x) => x.id === id);
+  const urlChanged = !ed.file && d.imageId && before && before.url !== d.url;
+  saveDrawings(vid, [...drawingsOf(v).filter((x) => x.id !== d.id), d]);
+  if (drop.length) deleteRecordImages(drop);
+  if (urlChanged) setRecordImageUrl(d.imageId, d.url);
+  toast(id ? "記録を保存しました" : "記録を追加しました");
+});
+$("#dr-delete").onclick = async () => {
+  const { vid, id } = state.editingDrawing || {};
+  $("#dlg-drawing").close("cancel");
+  const v = state.vtubers.find((x) => x.id === vid);
+  const imageId = v && (drawingsOf(v).find((x) => x.id === id) || {}).imageId;
+  if (!(await askConfirm({ title: "この記録を削除しますか？", body: imageId ? "付けた画像も一緒に削除されます。元に戻せません。" : "元に戻せません。", ok: "削除する", danger: true }))) return;
+  if (v) saveDrawings(vid, drawingsOf(v).filter((x) => x.id !== id));
+  if (imageId) deleteRecordImages([imageId]); // 付けた画像も一緒に消す
+  toast("記録を削除しました");
+};
+
+// ------------------------------------------------------------
 // カレンダー (誕生日・記念日・予定)
 //  - 上に 1 か月分のカレンダー、下に選んだ日の内容を出す
 //  - 予定は「どの推しの予定か」を選んで登録する
 // ------------------------------------------------------------
 const WEEK = ["日", "月", "火", "水", "木", "金", "土"];
-const CAL_ICON = { bday: "🎂", anniv: "🎉", event: "📌" };
+const CAL_ICON = { bday: "🎂", anniv: "🎉", event: "📌", draw: "📝" };
 const pad2 = (n) => String(n).padStart(2, "0");
 // 日付 → 「2026-10-25」の形 (予定の保存とカレンダーのマスの目印に使う)
 const ymd = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
@@ -1933,6 +2309,42 @@ function cleanEvents(list) {
 const eventCovers = (ev, key) => key >= ev.date && key <= (ev.endDate || ev.date);
 // 予定の最後の日
 const eventEnd = (ev) => ev.endDate || ev.date;
+// 予定をスマホなどのカレンダーに入れるためのファイル (.ics) を作ってダウンロードさせる
+//  - 時刻つきの予定は 30 分前に通知が出るようにしておく (通知はスマホのカレンダーが出す)
+//  - 時刻はその端末の時間 (日本時間) のまま入れる
+function downloadIcs(ev) {
+  const v = state.vtubers.find((x) => x.id === ev.vtuberId);
+  const who = v ? titleOf(v) : "";
+  // .ics の文字のきまり: 「\」「;」「,」「改行」は前に \ を付ける
+  const t = (s) => String(s).replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
+  const d8 = (key) => key.replace(/-/g, "");
+  const nextDay = (key) => { const d = fromYmd(key); d.setDate(d.getDate() + 1); return ymd(d); };
+  const hm = (time) => time.replace(":", "") + "00";
+  const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Oshi Memo//JA", "CALSCALE:GREGORIAN", "BEGIN:VEVENT",
+    `UID:${ev.id}@oshi-memo`, `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d+/, "")}`];
+  if (ev.allDay) {
+    // 終日: 終わりの日は「次の日」を入れるきまり
+    lines.push(`DTSTART;VALUE=DATE:${d8(ev.date)}`, `DTEND;VALUE=DATE:${d8(nextDay(eventEnd(ev)))}`);
+  } else {
+    const endKey = eventEnd(ev);
+    // 終了時刻が無いときは、1 日の予定なら 1 時間後、期間の予定なら最後の日の 23:59 にする
+    let end;
+    if (ev.endTime) end = `${d8(endKey)}T${hm(ev.endTime)}`;
+    else if (ev.endDate) end = `${d8(endKey)}T235900`;
+    else { const d = fromYmd(ev.date); const [h, m] = ev.time.split(":").map(Number); d.setHours(h + 1, m); end = `${d8(ymd(d))}T${String(d.getHours()).padStart(2, "0")}${String(d.getMinutes()).padStart(2, "0")}00`; }
+    lines.push(`DTSTART:${d8(ev.date)}T${hm(ev.time)}`, `DTEND:${end}`);
+  }
+  lines.push(`SUMMARY:${t((who ? `【${who}】` : "") + ev.title)}`);
+  const desc = [ev.memo, ev.url].filter(Boolean).join("\n");
+  if (desc) lines.push(`DESCRIPTION:${t(desc)}`);
+  if (ev.url) lines.push(`URL:${ev.url}`);
+  if (!ev.allDay) lines.push("BEGIN:VALARM", "ACTION:DISPLAY", `DESCRIPTION:${t(ev.title)}`, "TRIGGER:-PT30M", "END:VALARM");
+  lines.push("END:VEVENT", "END:VCALENDAR");
+  // 名前は「oshimemo-2026-10-25.ics」の形
+  downloadBlob(new Blob([lines.join("\r\n") + "\r\n"], { type: "text/calendar;charset=utf-8" }), `oshimemo-${ev.date}.ics`);
+  toast("カレンダー用のファイルを作りました。開くとスマホのカレンダーに追加できます");
+}
+
 // 予定に登録したリンクを開くボタン (リンクが無ければ空)。押すと新しいタブで開く
 const eventLinkHtml = (ev) => (ev.url ? `<a class="ev-link" href="${esc(ev.url)}" target="_blank" rel="noopener noreferrer" title="${esc(ev.url)}">🔗 開く</a>` : "");
 // 「10/17」の形 (曜日つきなら「10/17 (土)」)
@@ -1970,8 +2382,12 @@ function calendarItems(date) {
   for (const ev of state.events) {
     if (eventCovers(ev, key)) items.push({ kind: "event", v: state.vtubers.find((x) => x.id === ev.vtuberId), ev, time: eventSortKey(ev, key), text: ev.title });
   }
-  // 誕生日 → 記念日 → 予定 (予定は時刻の早い順。時刻なしが先)
-  const order = { bday: 0, anniv: 1, event: 2 };
+  // 記録 (投稿日に出す)
+  for (const v of state.vtubers) {
+    for (const d of drawingsOf(v)) if (d.date === key) items.push({ kind: "draw", v, dr: d, text: d.memo || "記録" });
+  }
+  // 誕生日 → 記念日 → 予定 → 記録 (予定は時刻の早い順。時刻なしが先)
+  const order = { bday: 0, anniv: 1, event: 2, draw: 3 };
   return items.sort((a, b) => order[a.kind] - order[b.kind] || (a.time || "").localeCompare(b.time || ""));
 }
 
@@ -2085,7 +2501,8 @@ function renderCalendar() {
   }
   // 選んだ日の内容
   const sd = fromYmd(sel);
-  const list = calendarItems(sd).map((x) => {
+  // 予定 (誕生日・記念日・予定) と記録は、別々の見出しに分けて出す
+  const listHtml = (items) => items.map((x) => {
     const name = x.v ? esc(titleOf(x.v)) : "(削除した推し)";
     const head = `<span class="cal-icon">${CAL_ICON[x.kind]}</span>` +
       (x.kind === "event" ? `<span class="cal-time">${eventWhen(x.ev)}</span>` : "") +
@@ -2093,9 +2510,17 @@ function renderCalendar() {
     // 予定は押すと編集、誕生日・記念日は押すとその推しのページへ
     return x.kind === "event"
       ? `<li class="cal-li"><button type="button" class="cal-item" data-event="${x.ev.id}" title="押すと編集">${head}` +
-        (x.ev.memo ? `<span class="cal-memo">${esc(x.ev.memo)}</span>` : "") + `</button>${eventLinkHtml(x.ev)}</li>`
+        (x.ev.memo ? `<span class="cal-memo">${esc(x.ev.memo)}</span>` : "") + `</button>${eventLinkHtml(x.ev)}` +
+        `<button type="button" class="ev-ics" data-ics="${x.ev.id}" title="スマホなどのカレンダーアプリに追加">📲 カレンダーに追加</button></li>`
+      : x.kind === "draw"
+      // 記録は押すと編集 (リンクがあれば横に 🔗 開く)
+      ? `<li class="cal-li"><button type="button" class="cal-item" data-cal-drawing="${x.dr.id}" data-vid="${x.v.id}" title="押すと編集">${head}</button>` +
+        `${eventLinkHtml(x.dr)}</li>`
       : `<li><button type="button" class="cal-item" data-select="${x.v.id}" title="押すと推しのページへ">${head}</button></li>`;
   }).join("");
+  const dayItems = calendarItems(sd);
+  const plans = listHtml(dayItems.filter((x) => x.kind !== "draw"));
+  const draws = listHtml(dayItems.filter((x) => x.kind === "draw"));
   main.innerHTML = `
     <section class="card cal">
       <div class="cal-head">
@@ -2105,12 +2530,20 @@ function renderCalendar() {
         <button type="button" id="cal-today" class="cal-today-btn">今日</button>
       </div>
       <div class="cal-grid">${cells}</div>
-      <p class="hint cal-legend">🎂 誕生日　🎉 記念日　📌 予定</p>
+      <p class="hint cal-legend">🎂 誕生日　🎉 記念日　📌 予定　📝 記録</p>
     </section>
     <section class="card cal-list">
       <h3>${sd.getMonth() + 1}月${sd.getDate()}日 (${WEEK[sd.getDay()]})</h3>
-      ${list ? `<ul>${list}</ul>` : `<p class="none">この日の予定はありません</p>`}
-      <button type="button" id="btn-add-event" class="primary">＋ この日に予定を追加</button>
+      <div class="cal-box plan">
+        <h4 class="cal-sub">📌 予定・誕生日・記念日<span class="cal-count">${(plans.match(/<li/g) || []).length} 件</span></h4>
+        ${plans ? `<ul>${plans}</ul>` : `<p class="none">この日の予定はありません</p>`}
+        <button type="button" id="btn-add-event" class="primary">＋ この日に予定を追加</button>
+      </div>
+      <div class="cal-box draw">
+        <h4 class="cal-sub">📝 記録（描いたイラストなど）<span class="cal-count">${(draws.match(/<li/g) || []).length} 件</span></h4>
+        ${draws ? `<ul>${draws}</ul>` : `<p class="none">この日の記録はありません</p>`}
+        <button type="button" id="btn-cal-drawing">＋ この日に記録を追加</button>
+      </div>
     </section>`;
   $("#cal-prev").onclick = () => moveMonth(-1);
   $("#cal-next").onclick = () => moveMonth(1);
@@ -2122,7 +2555,15 @@ function renderCalendar() {
     renderDetail();
   }));
   main.querySelectorAll("[data-event]").forEach((b) => (b.onclick = () => openEventDialog(state.events.find((e) => e.id === b.dataset.event))));
+  // 📲: スマホなどのカレンダーに追加
+  main.querySelectorAll("[data-ics]").forEach((b) => (b.onclick = () => downloadIcs(state.events.find((e) => e.id === b.dataset.ics))));
   $("#btn-add-event").onclick = () => openEventDialog(null, sel);
+  // 記録: 追加 (推しはダイアログで選ぶ) と編集
+  $("#btn-cal-drawing").onclick = () => openDrawingDialog(null, null, sel);
+  main.querySelectorAll("[data-cal-drawing]").forEach((b) => (b.onclick = () => {
+    const v = state.vtubers.find((x) => x.id === b.dataset.vid);
+    if (v) openDrawingDialog(v, drawingsOf(v).find((d) => d.id === b.dataset.calDrawing));
+  }));
   // 誕生日・記念日を押すと推しのページへ
   main.querySelectorAll("[data-select]").forEach((b) => (b.onclick = () => openFromCalendar(b.dataset.select)));
 }
@@ -2139,6 +2580,7 @@ function openEventDialog(ev, date, vtuberId) {
   $("#ev-vtuber").innerHTML = list.map((v) => `<option value="${v.id}" ${v.id === pick ? "selected" : ""}>${esc(titleOf(v))}</option>`).join("") +
     // 推しを削除した予定は「(削除した推し)」のまま残す
     (ev && !list.some((v) => v.id === ev.vtuberId) ? `<option value="${esc(ev.vtuberId)}" selected>(削除した推し)</option>` : "");
+  syncOshiPicker($("#ev-vtuber")); // 文字を打てる選択欄にも名前を入れる
   $("#ev-date").value = ev ? ev.date : date;
   $("#ev-end-date").value = ev ? ev.endDate : "";
   $("#ev-allday").checked = ev ? ev.allDay : false;
@@ -2204,6 +2646,42 @@ $("#ev-delete").onclick = async () => {
   saveEvents(state.events.filter((e) => e.id !== id));
   toast("予定を削除しました");
 };
+
+// 記録を保存する (公開版: この端末の中に保存)
+function saveVtuberDrawings(vid, drawings) {
+  store.updateVtuber(vid, { drawings }).then(reload).catch(fail);
+}
+
+// 記録の画像を、その推しの「記録」フォルダに保存する (フォルダが無ければ作る)。保存した画像の ID を返す
+const RECORD_FOLDER = "記録";
+async function addRecordImage(v, file, memo, url) {
+  const bitmap = await createImageBitmap(file).catch(() => null);
+  if (!bitmap) throw new Error("この画像はこのブラウザで開けない形式のため、保存できませんでした");
+  const thumb = await makeThumb(bitmap);
+  const { width, height } = bitmap;
+  bitmap.close();
+  if (!(v.folders || []).includes(RECORD_FOLDER)) await store.updateVtuber(v.id, { folders: [...(v.folders || []), RECORD_FOLDER] });
+  const id = newId();
+  const base = file.name && file.name !== "image.png" ? file.name.replace(/\.[^.]+$/, "") : `record_${Date.now()}`;
+  try {
+    await store.addImage({
+      id, vtuberId: v.id, folder: RECORD_FOLDER, name: `${base}.${extOf(file.type)}`, type: file.type,
+      thumb, width, height, createdAt: Date.now(), memo, ...(url ? { url } : {}),
+    }, file);
+  } catch (e) {
+    if (e && e.name === "QuotaExceededError") throw new Error("端末の空き容量が足りません");
+    throw e;
+  }
+  return id;
+}
+// 記録の画像のリンクを変える (記録のリンクを変えたとき)
+function setRecordImageUrl(id, url) {
+  store.updateImages([id], { url }).then(reload).catch(fail);
+}
+// 記録の画像を消す (記録を削除したとき・画像を変えたとき)
+function deleteRecordImages(ids) {
+  store.deleteImages(ids).then(reload).catch(fail);
+}
 
 // 予定を保存して描き直す (先に画面だけ変えて、保存が終わったら読み直す)
 function saveEvents(events) {

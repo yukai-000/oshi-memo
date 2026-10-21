@@ -20,7 +20,7 @@
   <script src="theme.js?v=20261019-1"></script>
   <!-- ?v=… は「バージョン番号」。アプリを更新したら数字を変えると、
        スマホなどに残っている古いファイルではなく、新しいファイルが必ず読み込まれる -->
-  <link rel="stylesheet" href="style.css?v=20261020-2">
+  <link rel="stylesheet" href="style.css?v=20261021-3">
 </head>
 <body>
   <!-- 読み込み中の表示 -->
@@ -46,6 +46,8 @@
       <button id="btn-close-menu" class="icon-btn" title="閉じる" aria-label="閉じる">✕</button>
     </div>
     <input id="search" type="search" placeholder="さがす… (名前・ふりがな・事務所など)">
+    <!-- 推しリストの並び: あいうえお順 / 事務所ごと (押すと切り替え) -->
+    <button type="button" id="btn-group" class="ghost list-group-btn" hidden>並び: あいうえお順 ▾</button>
     <button id="btn-add-vtuber" class="primary">＋ 推しを追加</button>
     <ul id="vtuber-list"></ul>
   </aside>
@@ -140,6 +142,63 @@
     </form>
   </dialog>
 
+  <!-- 記録 (イラスト・小説などの投稿) の追加・編集 -->
+  <dialog id="dlg-drawing">
+    <form method="dialog">
+      <h2 id="drawing-title" tabindex="-1" autofocus>記録を追加</h2>
+      <p class="hint">イラストや小説などを投稿した日を記録できます。<span class="req">＊</span> は必ず入れる項目です</p>
+      <div class="ev-form">
+        <!-- 推しの選択: カレンダーから追加するときだけ出す -->
+        <label id="dr-vtuber-row" hidden>推し<span class="req" aria-hidden="true">＊</span><select id="dr-vtuber"></select></label>
+        <label>投稿日<span class="req" aria-hidden="true">＊</span><input id="dr-date" type="date" required></label>
+        <label>リンク<input id="dr-url" type="url" maxlength="2000" placeholder="Xの投稿リンクなど" autocomplete="off" spellcheck="false"></label>
+        <!-- 画像 (1 枚。推しのページの「記録」フォルダにも入る) -->
+        <div class="dr-image">
+          <span class="dr-image-label">画像</span>
+          <img id="dr-preview" alt="" hidden>
+          <div class="dr-image-btns">
+            <button type="button" id="dr-image-pick">画像を選ぶ</button>
+            <button type="button" id="dr-image-clear" hidden>画像を外す</button>
+            <input id="dr-file" type="file" accept="image/*" hidden>
+          </div>
+          <p class="hint">推しのページの「記録」フォルダにも入ります</p>
+        </div>
+        <label>メモ<input id="dr-memo" type="text" maxlength="200" placeholder="例: 誕生日のお祝いイラスト" autocomplete="off"></label>
+      </div>
+      <div class="dlg-buttons">
+        <button type="button" id="dr-delete" class="danger" hidden>削除</button>
+        <button value="cancel" formnovalidate>キャンセル</button>
+        <button value="ok" class="primary">保存</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- 画像を追加 (画像を選ぶ + リンク) -->
+  <dialog id="dlg-upload">
+    <form method="dialog">
+      <h2 tabindex="-1" autofocus>画像を追加</h2>
+      <p class="hint"><span class="req">＊</span> は必ず入れる項目です</p>
+      <div class="ev-form">
+        <div class="dr-image">
+          <span class="dr-image-label">画像<span class="req" aria-hidden="true">＊</span></span>
+          <div id="up-previews" class="up-previews"></div>
+          <div class="dr-image-btns">
+            <button type="button" id="up-pick">画像を選ぶ</button>
+            <span id="up-count" class="hint"></span>
+            <input id="up-file" type="file" accept="image/*" multiple hidden>
+          </div>
+          <p class="hint">何枚でもまとめて選べます</p>
+        </div>
+        <label>リンク<input id="up-url" type="url" maxlength="2000" placeholder="Xの投稿リンクなど" autocomplete="off" spellcheck="false"></label>
+        <p class="hint up-url-hint">リンクは選んだ画像すべてに付きます。あとから画像を開いて変えることもできます</p>
+      </div>
+      <div class="dlg-buttons">
+        <button value="cancel" formnovalidate>キャンセル</button>
+        <button value="ok" id="up-ok" class="primary">追加</button>
+      </div>
+    </form>
+  </dialog>
+
   <!-- 確認・入力のポップアップ (ブラウザの確認画面の代わり。中身は app.js の askDialog で入れる) -->
   <dialog id="dlg-ask">
     <form method="dialog">
@@ -214,6 +273,11 @@
       <button id="lb-pick-add" class="primary">に登録</button>
     </div>
     <input id="lb-memo" class="lb-memo" type="text" placeholder="ひとことメモ (例: 前髪の分け目) … Enter で保存">
+    <!-- リンク (入れると「🔗 開く」が出る) -->
+    <div class="lb-link">
+      <input id="lb-url" class="lb-memo" type="url" maxlength="2000" placeholder="リンク (Xの投稿リンクなど) … Enter で保存" autocomplete="off" spellcheck="false">
+      <a id="lb-url-open" class="button" target="_blank" rel="noopener noreferrer" hidden>🔗 開く</a>
+    </div>
     <div class="lightbox-tools">
       <button id="lb-flip" title="左右反転">⇆ 反転</button>
       <button id="lb-gray" title="白黒表示 (明るさの確認)">◐ 白黒</button>
@@ -234,6 +298,6 @@
   <!-- type="module" にすると import が使える -->
   <!-- zip の書き出し・読み込み用ライブラリ (JSZip, MIT ライセンス) -->
   <script src="lib/jszip.min.js"></script>
-  <script type="module" src="app.js?v=20261020-1"></script>
+  <script type="module" src="app.js?v=20261021-3"></script>
 </body>
 </html>

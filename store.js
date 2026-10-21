@@ -108,6 +108,7 @@ export async function deleteVtuber(id) {
 // ------------------------------------------------------------
 export const listImages = (vtuberId) => read("images", (s) => s.index("vtuberId").getAll(vtuberId));
 export const listAllImages = () => read("images", (s) => s.getAll());
+export const getImage = (id) => read("images", (s) => s.get(id)); // 画像 1 枚の情報 (サムネイル付き)
 export const getImageBlob = async (id) => (await read("imageData", (s) => s.get(id)))?.blob || null;
 
 // 画像を追加 (情報と本体を一緒に保存)
